@@ -14,7 +14,7 @@ async def search_spotify_url(url: str) -> dict[str, str] | None:
         logger.error(f"Error searching Spotify URL: {e}")
         return None
     if track:
-        logger.info('Found track for Spotify URL: {url}')
+        logger.info('Found track for Spotify URL')
         return {
             'title': track['name'],
             'artist': track['artists'][0]['name'],

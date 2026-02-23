@@ -1,5 +1,5 @@
 from aiogram import Router
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import Message, CallbackQuery, BufferedInputFile
 
 from app.audio.downloader import download_audio, fetch_thumbnail
 from app.audio.search import search_spotify_url, search_tracks
@@ -69,9 +69,15 @@ async def download(callback: CallbackQuery):
                 thumb = await fetch_thumbnail(track["cover"])
                 if path:
                     await msg.delete()
+
                     logger.info(f"Sending track to user: {query}")
-                    await callback.message.answer_audio(audio=FSInputFile(path), title=title, performer=artist, thumbnail=thumb, request_timeout=180)
+
+                    with open(path, "rb") as f:
+                        data = f.read()
+                    audio = BufferedInputFile(data, filename=f"{artist} - {title}.mp3")
+
+                    await callback.message.answer_audio(audio=audio, title=title, performer=artist, thumbnail=thumb, request_timeout=180)
                 else:
-                    await callback.message.answer("Ошибка: трек не сохранилось или потерялся путь")
+                    await callback.message.answer("Ошибка: трек не сохранился\nОбратитесь к @bread_dubov")
         else:
             await callback.message.answer("Ошибка: не удалось получить трек")

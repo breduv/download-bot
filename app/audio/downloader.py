@@ -10,7 +10,7 @@ logger = get_logger(__name__)
 
 async def download_audio(query: str, tmpdir: str):
     try:
-        logger.debug(f"Downloading track: {query}")
+        logger.debug("Downloading track")
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
