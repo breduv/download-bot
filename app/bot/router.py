@@ -64,12 +64,12 @@ async def download(callback: CallbackQuery):
             artist = track['artist']
             
             async with async_tempdir() as tmpdir:
-                logger.debug(f"Downloading track: {artist} - {title}")
                 query = f"{artist} - {title}"
                 path = await download_audio(query, tmpdir)
                 thumb = await fetch_thumbnail(track["cover"])
                 if path:
                     await msg.delete()
+                    logger.info(f"Sending track to user: {query}")
                     await callback.message.answer_audio(audio=FSInputFile(path), title=title, performer=artist, thumbnail=thumb, request_timeout=180)
                 else:
                     await callback.message.answer("Ошибка: трек не сохранилось или потерялся путь")

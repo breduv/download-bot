@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 async def download_audio(query: str, tmpdir: str):
     try:
+        logger.debug(f"Downloading track: {query}")
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
@@ -47,6 +48,8 @@ async def download_audio(query: str, tmpdir: str):
                     info = info["entries"][0]
 
                 filename = ydl.prepare_filename(info).rsplit('.', 1)[0] + '.mp3'
+
+                logger.info(f"Downloaded track: {filename}")
 
                 return filename
             
