@@ -22,6 +22,6 @@ services:
       - ./www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt
 networks:
   default:
-    driver: bridge
+    driver: host
     driver_opts:
       com.docker.network.driver.mtu: "1400"
