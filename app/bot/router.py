@@ -76,7 +76,7 @@ async def download(callback: CallbackQuery):
                         data = f.read()
                     audio = BufferedInputFile(data, filename=f"{artist} - {title}.mp3")
 
-                    await callback.message.answer_audio(audio=audio, title=title, performer=artist, thumbnail=thumb, request_timeout=180)
+                    await callback.message.answer_audio(audio=audio, title=title, performer=artist, thumbnail=thumb, request_timeout=300)
                 else:
                     await callback.message.answer("Ошибка: трек не сохранился\nОбратитесь к @bread_dubov")
         else:
