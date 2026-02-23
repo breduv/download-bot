@@ -14,7 +14,7 @@ async def download_audio(query: str, tmpdir: str):
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
-            'proxy': settings.HTTPS_PROXY,
+            'proxy': settings.PROXY,
             'cookiefile': 'www.youtube.com_cookies.txt',
             'noplaylist': True,
             'quiet': True,

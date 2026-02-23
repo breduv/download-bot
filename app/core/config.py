@@ -9,15 +9,15 @@ class Settings(BaseSettings):
     CLIENT_ID: str
     CLIENT_SECRET: str
 
-    HTTPS_PROXY: str
+    PROXY: str
 
     LOG_LEVEL: str
 
     @property
     def authorization(self):
         proxies = {
-            "http": self.HTTPS_PROXY,
-            "https": self.HTTPS_PROXY
+            "http": self.PROXY,
+            "https": self.PROXY
         }
 
         return Spotify(
