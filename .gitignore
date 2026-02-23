@@ -1,0 +1,5 @@
+.env
+**/__pycache__/
+**/logs/
+.cache
+test.py
