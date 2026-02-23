@@ -49,7 +49,7 @@ def get_logger(name: str, filename: str = "logs.log") -> logging.Logger:
         # консоль с цветами
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(ColorFormatter(datefmt="%d/%m/%Y %H:%M:%S"))
-        stream_handler.setLevel(logging.WARNING if name == "aiogram" else LOG_LEVEL_NUM)
+        stream_handler.setLevel(logging.DEBUG if name == "aiogram" else LOG_LEVEL_NUM)
         logger.addHandler(stream_handler)
 
         logger.propagate = False
