@@ -1,5 +1,6 @@
 import asyncio
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
 from app.bot.router import router
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -27,7 +28,8 @@ async def keep_alive(bot: Bot):
 
 async def start_telegram_bot():
     try:
-        bot = Bot(token=settings.BOT_TOKEN)
+        session = AiohttpSession(proxy=settings.PROXY)
+        bot = Bot(token=settings.BOT_TOKEN, session=session)
         dp = Dispatcher()
 
         # dp.message.middleware(OnlyGroupMiddleware())
