@@ -14,3 +14,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
     volumes:
       - ./www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
