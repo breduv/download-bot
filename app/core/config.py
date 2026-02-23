@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     CLIENT_SECRET: str
 
     PROXY: str
+    PROXY2: str
 
     LOG_LEVEL: str
 

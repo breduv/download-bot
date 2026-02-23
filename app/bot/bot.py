@@ -28,7 +28,7 @@ async def keep_alive(bot: Bot):
 
 async def start_telegram_bot():
     try:
-        session = AiohttpSession(proxy=settings.PROXY)
+        session = AiohttpSession(proxy=settings.PROXY2)
         bot = Bot(token=settings.BOT_TOKEN, session=session)
         dp = Dispatcher()
 
