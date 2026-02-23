@@ -11,6 +11,7 @@ services:
       CLIENT_ID: ${CLIENT_ID}
       CLIENT_SECRET: ${CLIENT_SECRET}
       PROXY: ${PROXY}
+      PROXY2: ${PROXY2}
       LOG_LEVEL: ${LOG_LEVEL}
     volumes:
       - ./www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt
