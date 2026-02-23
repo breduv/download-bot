@@ -70,7 +70,7 @@ async def download(callback: CallbackQuery):
                 thumb = await fetch_thumbnail(track["cover"])
                 if path:
                     await msg.delete()
-                    await callback.message.answer_audio(audio=FSInputFile(path), title=title, performer=artist, thumbnail=thumb)
+                    await callback.message.answer_audio(audio=FSInputFile(path), title=title, performer=artist, thumbnail=thumb, request_timeout=180)
                 else:
                     await callback.message.answer("Ошибка: трек не сохранилось или потерялся путь")
         else:
