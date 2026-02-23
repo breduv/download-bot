@@ -20,8 +20,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
     volumes:
       - ./www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt
-    networks:
-      default:
-        driver: bridge
-        driver_opts:
-          com.docker.network.driver.mtu: "1400" # Или 1450
+  networks:
+    default:
+      driver: bridge
+      driver_opts:
+        com.docker.network.driver.mtu: "1400" # Или 1450
