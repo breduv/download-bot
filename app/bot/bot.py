@@ -1,5 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiohttp import ClientTimeout
 from app.bot.router import router
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -27,7 +29,8 @@ async def keep_alive(bot: Bot):
 
 async def start_telegram_bot():
     try:
-        bot = Bot(token=settings.BOT_TOKEN)
+        session = AiohttpSession(timeout=ClientTimeout(total=300))
+        bot = Bot(token=settings.BOT_TOKEN, session=session)
         dp = Dispatcher()
 
         # dp.message.middleware(OnlyGroupMiddleware())
