@@ -1,5 +1,6 @@
 services:
   download-bot:
+    network_mode: host
     image: download-bot:${IMAGE_TAG:-latest}
     build:
       context: .
