@@ -24,7 +24,7 @@ deploy:
   stage: deploy
   script:
     - echo "Deploying $IMAGE_NAME:$IMAGE_TAG"
-    - IMAGE_TAG="$IMAGE_TAG" docker compose up -d --no-build --remove-orphans
+    - IMAGE_TAG="$IMAGE_TAG" docker compose up -d --no-build --remove-orphans --network host
 
     - docker image prune -f
     - docker builder prune -f
