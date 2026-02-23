@@ -29,8 +29,7 @@ async def keep_alive(bot: Bot):
 
 async def start_telegram_bot():
     try:
-        session = AiohttpSession(timeout=ClientTimeout(total=300))
-        bot = Bot(token=settings.BOT_TOKEN, session=session)
+        bot = Bot(token=settings.BOT_TOKEN)
         dp = Dispatcher()
 
         # dp.message.middleware(OnlyGroupMiddleware())
