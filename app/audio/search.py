@@ -5,10 +5,9 @@ from app.core.logger import get_logger
 
 logger = get_logger(__name__)
 
-SP = settings.authorization
-
 async def search_spotify_url(url: str) -> dict[str, str] | None:
     try:
+        SP = settings.authorization
         track = SP.track(extract_spotify_track_id(url))
     except Exception as e:
         logger.error(f"Error searching Spotify URL: {e}")
@@ -24,6 +23,7 @@ async def search_spotify_url(url: str) -> dict[str, str] | None:
     return None
 
 async def search_tracks(query: str, limit: int = 5) -> list[dict[str, str]]:
+    SP = settings.authorization
     track_res = SP.search(q=query, type='track', limit=10)
     items = track_res.get('tracks', {}).get('items', []) if track_res else []
 
