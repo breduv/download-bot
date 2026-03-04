@@ -3,3 +3,4 @@
 **/logs/
 .cache
 test.py
+requirements.in
