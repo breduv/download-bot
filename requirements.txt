@@ -11,7 +11,11 @@ aiogram==3.26.0
 aiohappyeyeballs==2.6.1
     # via aiohttp
 aiohttp==3.13.3
-    # via aiogram
+    # via
+    #   aiogram
+    #   aiohttp-socks
+aiohttp-socks==0.11.0
+    # via -r requirements.in
 aiosignal==1.4.0
     # via aiohttp
 annotated-types==0.7.0
@@ -63,6 +67,8 @@ pydantic-settings==2.13.1
     # via -r requirements.in
 python-dotenv==1.2.2
     # via pydantic-settings
+python-socks[asyncio]==2.8.1
+    # via aiohttp-socks
 redis==7.2.1
     # via spotipy
 requests==2.32.5
