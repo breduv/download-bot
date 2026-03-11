@@ -38,7 +38,7 @@ async def search(msg: Message):
 
         else:
 
-            results = await search_tracks(query)
+            results = await search_tracks(query=query, limit=10)
 
             if not results:
                 await msg.answer("Ничего не найдено :(")
