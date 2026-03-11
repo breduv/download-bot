@@ -1,10 +1,10 @@
 from aiogram import Router
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
 
-from app.audio.downloader import download_audio, fetch_thumbnail
-from app.audio.search import search_spotify_url, search_tracks
+from app.audio.downloader import download_audio, fetch_thumbnail, download_video
+from app.audio.search import search_spotify_url, search_tracks, search_youtube_video
 from app.core.logger import get_logger
-from app.core.utils import async_tempdir, create_inline_keyboard, is_spotify_url, is_url
+from app.core.utils import async_tempdir, create_inline_keyboard, is_spotify_url, is_url, is_youtube_video_url
 
 
 router = Router(name = "main")
@@ -35,6 +35,19 @@ async def search(msg: Message):
                 )
                 track_links[str(len(track_links)+1)] = track
                 await download(fake_callback)
+
+            elif is_youtube_video_url(query):
+                logger.debug(f"Received YouTube URL: {query}")
+                qualities = await search_youtube_video(query)
+                buttons = []
+                for q in qualities:
+                    buttons.append([(f"{q['height']}p", f"download|{q['format_id']}|{query}")])
+
+                buttons.append([(f"audio", f"download|audio|{query}")])
+                
+                keyboard = create_inline_keyboard(buttons)
+                await msg.answer("Выбери формат:", reply_markup=keyboard)
+
 
         else:
 
@@ -81,3 +94,29 @@ async def download(callback: CallbackQuery):
                     await callback.message.answer("Ошибка: трек не сохранился\nОбратитесь к @bread_dubov")
         else:
             await callback.message.answer("Ошибка: не удалось получить трек")
+    elif callback.data.startswith("download|"):
+        data = callback.data.split("|")
+        # logger.debug(f"Download request received with data: {data}")
+        format_id = data[1]
+        url = data[2]
+        async with async_tempdir() as tmpdir:
+            if format_id == "audio":
+                path = await download_audio(url, tmpdir)
+            else:
+                path = await download_video(url, int(format_id), tmpdir)
+            if path:
+                await msg.delete()
+
+                logger.info(f"Sending video to user: {url}")
+
+                with open(path, "rb") as f:
+                    data = f.read()
+                ext = path.rsplit('.', 1)[-1]
+                video = BufferedInputFile(data, filename=f"video.{ext}")
+
+                if format_id == "audio":
+                    await callback.message.answer_audio(audio=video, request_timeout=300)
+                else:
+                    await callback.message.answer_video(video=video, request_timeout=300)
+            else:
+                await callback.message.answer("Ошибка: видео не сохранилось\nОбратитесь к @bread_dubov")

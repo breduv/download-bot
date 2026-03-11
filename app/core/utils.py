@@ -6,12 +6,23 @@ import tempfile
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
+YOUTUBE_VIDEO_RE = re.compile(
+    r"^(https?://)?(www\.)?"
+    r"(youtube\.com/(watch\?v=|shorts/|live/|embed/)|youtu\.be/)"
+    r"([A-Za-z0-9_-]{6,})"
+    r"([&?].*)?$"
+)
+
+
 def is_url(text: str) -> bool:
     return bool(re.match(r'https?://\S+', text.strip()))
 
 def is_spotify_url(text: str) -> bool:
     pattern = r'https?://open\.spotify\.com/(track|album|artist|playlist|episode|show)/[a-zA-Z0-9]+'
     return bool(re.match(pattern, text.strip()))
+
+def is_youtube_video_url(url: str) -> bool:
+    return bool(YOUTUBE_VIDEO_RE.match(url.strip()))
 
 def extract_spotify_track_id(url: str) -> str | None:
     match = re.match(r'https?://open\.spotify\.com/track/([a-zA-Z0-9]+)', url.strip())

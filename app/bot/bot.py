@@ -1,6 +1,7 @@
 import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
+
 from app.bot.router import router
 from app.core.config import settings
 from app.core.logger import get_logger

@@ -30,4 +30,4 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict()
 
-settings = Settings()
+settings = Settings() # type: ignore
