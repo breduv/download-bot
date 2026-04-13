@@ -64,8 +64,12 @@ async def download_audio(query: str, tmpdir: str):
 async def download_video(url: str, format_id: int, tmpdir: str):
     try:
         logger.debug("Downloading video")
+        if format_id == -1:
+            format = "bestvideo*"
+        else:
+            format = f'{format_id}'
         ydl_opts = {
-            'format': f'{format_id}+bestaudio/best',
+            'format': f'{format}+bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
             'proxy': settings.PROXY,
             'cookiefile': 'www.youtube.com_cookies.txt',

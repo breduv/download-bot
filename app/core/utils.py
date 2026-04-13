@@ -3,6 +3,7 @@ from difflib import SequenceMatcher
 import re
 import shutil
 import tempfile
+from urllib.parse import urlparse
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 
@@ -23,6 +24,22 @@ def is_spotify_url(text: str) -> bool:
 
 def is_youtube_video_url(url: str) -> bool:
     return bool(YOUTUBE_VIDEO_RE.match(url.strip()))
+
+def is_tiktok_video_url(url: str) -> bool:
+    try:
+        parsed = urlparse(url.strip())
+        host = parsed.netloc.lower()
+        path = parsed.path
+
+        if host in {"vm.tiktok.com", "vt.tiktok.com"}:
+            return True
+
+        if host in {"tiktok.com", "www.tiktok.com", "m.tiktok.com"}:
+            return bool(re.fullmatch(r'/@[\w.-]+/video/\d+', path))
+
+        return False
+    except Exception:
+        return False
 
 def extract_spotify_track_id(url: str) -> str | None:
     match = re.match(r'https?://open\.spotify\.com/track/([a-zA-Z0-9]+)', url.strip())
