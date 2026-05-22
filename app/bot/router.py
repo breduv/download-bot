@@ -1,4 +1,5 @@
-from aiogram import Router
+from aiogram import F, Router
+from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
 
 from app.audio.downloader import download_audio, fetch_thumbnail, download_video
@@ -11,6 +12,11 @@ router = Router(name = "main")
 logger = get_logger(__name__)
 
 track_links = {}
+
+
+@router.message(Command('start'), F.text)
+async def start(msg: Message):
+    await msg.answer("Привет!\nЯ бот для скачивания музыки с Spotify и видео-аудио с YouTube\nСкинь мне название песни или ссылку, и я всё сделаю")
 
 @router.message()
 async def search(msg: Message):

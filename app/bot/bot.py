@@ -1,5 +1,5 @@
 import asyncio
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, types
 from aiogram.client.session.aiohttp import AiohttpSession
 
 from app.bot.router import router
@@ -10,12 +10,12 @@ from app.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-# # Всплывающий список команд бота
-# async def set_commands(bot: Bot):
-#     commands = [
-#         types.BotCommand(command="talk", description="/talk <текст> | Нейро АбAIв ответит")
-#     ]
-#     await bot.set_my_commands(commands)
+# Всплывающий список команд бота
+async def set_commands(bot: Bot):
+    commands = [
+        types.BotCommand(command="start", description="Знакомство с ботом")
+    ]
+    await bot.set_my_commands(commands)
 
 
 async def keep_alive(bot: Bot):
@@ -35,6 +35,7 @@ async def start_telegram_bot():
 
         # dp.message.middleware(OnlyGroupMiddleware())
         dp.include_routers(router)
+        await set_commands(bot)
 
         logger.info("Starting Telegram bot")
 
