@@ -14,4 +14,4 @@ services:
       PROXY2: ${PROXY2}
       LOG_LEVEL: ${LOG_LEVEL}
     volumes:
-      - ./.secure_files/www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt:ro
+      - ./.secure_files/www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt
