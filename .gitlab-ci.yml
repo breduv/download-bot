@@ -23,6 +23,11 @@ build_image:
 deploy:
   stage: deploy
   script:
+    - echo "Downloading secure files"
+    - curl --silent "https://gitlab.com/gitlab-org/incubation-engineering/mobile-devops/download-secure-files/-/raw/main/installer" | bash
+
+    - test -f .secure_files/www.youtube.com_cookies.txt
+
     - echo "Deploying $IMAGE_NAME:$IMAGE_TAG"
     - IMAGE_TAG="$IMAGE_TAG" docker compose up -d --no-build --remove-orphans
 

@@ -17,16 +17,6 @@ async def set_commands(bot: Bot):
     ]
     await bot.set_my_commands(commands)
 
-
-async def keep_alive(bot: Bot):
-    while True:
-        try:
-            await bot.get_me()
-            logger.debug("[keep_alive] Telegram жив")
-        except Exception as e:
-            logger.error(f"[keep_alive] Ошибка: {e}")
-        await asyncio.sleep(300)  # каждые 5 минут
-
 async def start_telegram_bot():
     try:
         session = AiohttpSession(proxy=settings.PROXY2)
