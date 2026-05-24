@@ -14,6 +14,7 @@ async def download_audio(query: str, tmpdir: str):
         ydl_opts = {
             'format': 'bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+
             'proxy': settings.PROXY,
             'cookiefile': '/app/www.youtube.com_cookies.txt',
             'noplaylist': True,
@@ -24,6 +25,12 @@ async def download_audio(query: str, tmpdir: str):
 
             'js_runtimes': {'deno': {}},
             'remote_components': ['ejs:github'],
+
+            'extractor_args': {
+                'youtubepot-bgutilhttp': {
+                    'base_url': ['http://pot-provider:4416'],
+                },
+            },
 
             'writethumbnail': True,
             'embedthumbnail': True,

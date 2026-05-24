@@ -5,7 +5,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: download-bot
+    
     restart: unless-stopped
+
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
       CLIENT_ID: ${CLIENT_ID}
@@ -13,5 +15,12 @@ services:
       PROXY: ${PROXY}
       PROXY2: ${PROXY2}
       LOG_LEVEL: ${LOG_LEVEL}
+
     volumes:
       - ./.secure_files/www.youtube.com_cookies.txt:/app/www.youtube.com_cookies.txt
+    depends_on:
+      - pot-provider
+
+  pot-provider:
+    image: brainicism/bgutil-ytdlp-pot-provider:1.3.1-deno
+    restart: unless-stopped
