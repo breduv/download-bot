@@ -137,3 +137,5 @@ async def download(callback: CallbackQuery):
                     await callback.message.answer_video(video=video, request_timeout=300)
             else:
                 await callback.message.answer("Ошибка: видео не сохранилось\nОбратитесь к @bread_dubov")
+
+    return
