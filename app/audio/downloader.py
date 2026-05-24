@@ -27,6 +27,9 @@ async def download_audio(query: str, tmpdir: str):
             'remote_components': ['ejs:github'],
 
             'extractor_args': {
+                'youtube': {
+                    'player_client': ['mweb'],
+                },
                 'youtubepot-bgutilhttp': {
                     'base_url': ['http://pot-provider:4416'],
                 },
