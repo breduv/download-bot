@@ -73,11 +73,14 @@ async def download_video(url: str, format_id: int, tmpdir: str):
         ydl_opts = {
             'format': f'{format}+bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
+
             'proxy': settings.PROXY,
             # 'cookiefile': 'www.youtube.com_cookies.txt',
             'noplaylist': True,
-            'quiet': True,
-            'no_warnings': True,
+
+            'quiet': False,
+            'no_warnings': False,
+            'verbose': True,
 
             'js_runtimes': {'deno': {}},
             'remote_components': ['ejs:github'],
