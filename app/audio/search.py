@@ -50,9 +50,10 @@ async def search_tracks(query: str, limit: int = 5) -> list[dict[str, str]]:
 
 async def search_youtube_video(url: str):
     ydl_opts = {
-        "quiet": True,
-        "no_warnings": True,
-        'proxy': settings.PROXY,
+        "quiet": False,
+        "no_warnings": False,
+        "verbose": True,
+        "proxy": settings.PROXY,
     }
 
     def _extract():
@@ -64,12 +65,22 @@ async def search_youtube_video(url: str):
     result = []
 
     for f in formats: # type: ignore
-        # Берём только форматы, где есть видео
+        logger.debug(
+            "id=%s ext=%s h=%s fps=%s v=%s a=%s tbr=%s proto=%s note=%s",
+            f.get("format_id"),
+            f.get("ext"),
+            f.get("height"),
+            f.get("fps"),
+            f.get("vcodec"),
+            f.get("acodec"),
+            f.get("tbr"),
+            f.get("protocol"),
+            f.get("format_note"),
+        )
         if f.get("vcodec") == "none":
             continue
 
         height = f.get("height")
-        # logger.debug(f"Found format: {f.get('format_id')} with height: {height}")
         if not height:
             continue
 
