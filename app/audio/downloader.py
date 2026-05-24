@@ -16,7 +16,7 @@ async def download_audio(query: str, tmpdir: str):
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
 
             'proxy': settings.PROXY,
-            'cookiefile': '/app/www.youtube.com_cookies.txt',
+            # 'cookiefile': '/app/www.youtube.com_cookies.txt',
             'noplaylist': True,
 
             'quiet': False,
