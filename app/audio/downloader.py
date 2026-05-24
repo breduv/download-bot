@@ -15,26 +15,27 @@ async def download_audio(query: str, tmpdir: str):
             'format': 'bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
             'proxy': settings.PROXY,
-            'cookiefile': 'www.youtube.com_cookies.txt',
+            'cookiefile': '/app/www.youtube.com_cookies.txt',
             'noplaylist': True,
-            'quiet': True,
+
+            'quiet': False,
+            'no_warnings': False,
+            'verbose': True,
+
             'js_runtimes': {'deno': {}},
             'remote_components': ['ejs:github'],
-            'writethumbnail': True,       
-            'embedthumbnail': True,        
-            'addmetadata': True, 
+
+            'writethumbnail': True,
+            'embedthumbnail': True,
+            'addmetadata': True,
             'postprocessors': [
                 {
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
                 },
-                {
-                    'key': 'EmbedThumbnail',
-                },
-                {
-                    'key': 'FFmpegMetadata',
-                },
+                {'key': 'EmbedThumbnail'},
+                {'key': 'FFmpegMetadata'},
             ],
         }
 
