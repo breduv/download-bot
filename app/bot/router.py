@@ -81,6 +81,8 @@ async def search(msg: Message):
 
             keyboard = create_inline_keyboard(buttons)
             await msg.answer("Выбери трек:", reply_markup=keyboard)
+        
+    return
 
 @router.callback_query()
 async def download(callback: CallbackQuery):
