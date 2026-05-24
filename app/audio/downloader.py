@@ -74,7 +74,7 @@ async def download_video(url: str, format_id: int, tmpdir: str):
             'format': f'{format}+bestaudio/best',
             'outtmpl': f'{tmpdir}/%(title)s.%(ext)s',
             'proxy': settings.PROXY,
-            'cookiefile': 'www.youtube.com_cookies.txt',
+            # 'cookiefile': 'www.youtube.com_cookies.txt',
             'noplaylist': True,
             'quiet': True,
             'no_warnings': True,
