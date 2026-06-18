@@ -40,6 +40,33 @@ def is_tiktok_video_url(url: str) -> bool:
         return False
     except Exception:
         return False
+    
+def is_youtube_music_url(url: str) -> bool:
+    """Проверяет, является ли ссылка ссылкой на YouTube Music."""
+    try:
+        url = url.strip()
+        if not url:
+            return False
+
+        if not re.match(r"^https?://", url):
+            url = f"https://{url}"
+
+        parsed = urlparse(url)
+        host = parsed.netloc.lower()
+        path = parsed.path.rstrip("/")
+
+        if host not in {"music.youtube.com", "www.music.youtube.com"}:
+            return False
+
+        if path == "/watch":
+            return bool(re.search(r"(?:^|&)v=[A-Za-z0-9_-]{6,}(?:&|$)", parsed.query))
+
+        if path == "/playlist":
+            return bool(re.search(r"(?:^|&)list=[A-Za-z0-9_-]+(?:&|$)", parsed.query))
+
+        return path.startswith(("/browse/", "/channel/", "/podcast/"))
+    except Exception:
+        return False
 
 def extract_spotify_track_id(url: str) -> str | None:
     match = re.match(r'https?://open\.spotify\.com/track/([a-zA-Z0-9]+)', url.strip())

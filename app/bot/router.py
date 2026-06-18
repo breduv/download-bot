@@ -5,7 +5,7 @@ from aiogram.types import Message, CallbackQuery, BufferedInputFile
 from app.audio.downloader import download_audio, fetch_thumbnail, download_video
 from app.audio.search import search_spotify_url, search_tracks, search_youtube_video
 from app.core.logger import get_logger
-from app.core.utils import async_tempdir, create_inline_keyboard, is_spotify_url, is_url, is_youtube_video_url, is_tiktok_video_url
+from app.core.utils import async_tempdir, create_inline_keyboard, is_spotify_url, is_url, is_youtube_video_url, is_tiktok_video_url, is_youtube_music_url
 
 
 router = Router(name = "main")
@@ -61,6 +61,17 @@ async def search(msg: Message):
                     from_user=msg.from_user,
                     chat_instance='fake',
                     data=f"download|-1|{query}",
+                    message=msg,
+                )
+                await download(fake_callback)
+            
+            elif is_youtube_music_url(query):
+                logger.debug(f"Received YouTube Music URL: {query}")
+                fake_callback = CallbackQuery(
+                    id='fake',
+                    from_user=msg.from_user,
+                    chat_instance='fake',
+                    data=f"download|audio|{query}",
                     message=msg,
                 )
                 await download(fake_callback)
