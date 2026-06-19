@@ -1,8 +1,10 @@
 import asyncio
-from app.bot.bot import start_telegram_bot
-from app.core.logger import get_logger
+import logging
+from app.application import run_application
+from app.core.logger import configure_logging
 
-get_logger('aiogram')
 
 if __name__ == "__main__":
-    asyncio.run(start_telegram_bot())
+    configure_logging()
+    logging.getLogger("aiogram").setLevel(logging.WARNING)
+    asyncio.run(run_application())

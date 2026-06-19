@@ -1,33 +1,44 @@
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from spotipy import Spotify
-from spotipy.oauth2 import SpotifyClientCredentials
+
 
 class Settings(BaseSettings):
-    
-    BOT_TOKEN: str
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-    CLIENT_ID: str
-    CLIENT_SECRET: str
+    bot_token: SecretStr
 
-    PROXY: str
-    PROXY2: str
+    spotify_client_id: str
 
-    LOG_LEVEL: str
+    spotify_client_secret: SecretStr
 
-    @property
-    def authorization(self):
-        proxies = {
-            "http": self.PROXY,
-            "https": self.PROXY
-        }
+    media_proxy: SecretStr | None = Field(default=None)
 
-        return Spotify(
-            auth_manager=SpotifyClientCredentials(
-                client_id=self.CLIENT_ID,
-                client_secret=self.CLIENT_SECRET),
-            proxies=proxies
-        )
+    telegram_proxy: SecretStr | None = Field(default=None)
 
-    model_config = SettingsConfigDict()
+    log_level: Literal[
+        "DEBUG",
+        "INFO",
+        "WARNING",
+        "ERROR",
+        "CRITICAL",
+    ] = Field(default="INFO")
 
-settings = Settings() # type: ignore
+    @field_validator("media_proxy", "telegram_proxy", mode="before")
+    @classmethod
+    def empty_proxy_to_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

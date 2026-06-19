@@ -50,7 +50,9 @@ multidict==6.7.1
     #   aiohttp
     #   yarl
 mutagen==1.47.0
-    # via yt-dlp
+    # via
+    #   -r requirements.in
+    #   yt-dlp
 propcache==0.4.1
     # via
     #   aiohttp

@@ -1,57 +1,46 @@
 import logging
 from pathlib import Path
-from app.core.config import settings
+import sys
 
-LOG_LEVEL_NUM = getattr(logging, settings.LOG_LEVEL, logging.INFO)
 
-LOG_DIR = Path("logs")
-LOG_DIR.mkdir(parents=True, exist_ok=True)
+def configure_logging(
+    level: int = logging.INFO, 
+    log_file: str = "logs/logs.log"
+) -> None:
+    log_format = "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-16s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
 
-RESET = "\033[0m"
-COLOR_TIME = "\033[90m"     # серый
-COLOR_NAME = "\033[36m"     # циан
-COLOR_FUNC = "\x1b[38;5;208m"  # оранжевый
-LEVEL_COLORS = {
-    "DEBUG":    "\033[37m",
-    "INFO":     "\033[32m",
-    "WARNING":  "\033[33m",
-    "ERROR":    "\033[31m",
-    "CRITICAL": "\033[41m",
-}
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.handlers.clear()
 
-class ColorFormatter(logging.Formatter):
-    def format(self, record):
-        asctime = f"{COLOR_TIME}{self.formatTime(record, self.datefmt)}{RESET}"
-        level = f"{LEVEL_COLORS.get(record.levelname, '')}{record.levelname}{RESET}"
-        name = f"{COLOR_NAME}[{record.name}]{RESET}"
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(level)
 
-        # добавляем место вызова
-        where = f"{COLOR_FUNC}[{record.funcName}]{RESET}"
+    console_formatter = logging.Formatter(
+        fmt=log_format,
+        datefmt=date_format,
+    )
 
-        msg = record.getMessage()
-        return f"{asctime} {level}: {name} {where}: {msg}"
+    console_handler.setFormatter(console_formatter)
 
-def get_logger(name: str, filename: str = "logs.log") -> logging.Logger:
-    logger = logging.getLogger(name)
-    logger.setLevel(LOG_LEVEL_NUM)
+    # ===== Файл =====
+    Path(log_file).parent.mkdir(parents=True, exist_ok=True)
 
-    if not logger.handlers:
-        # файл без цветов
-        file_formatter = logging.Formatter(
-            "%(asctime)s %(levelname)s: [%(name)s] %(funcName)s: %(message)s",
-            "%d/%m/%Y %H:%M:%S"
-        )
-        file_handler = logging.FileHandler(LOG_DIR / filename, encoding="utf-8")
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(LOG_LEVEL_NUM)
-        logger.addHandler(file_handler)
+    file_handler = logging.FileHandler(
+        filename=log_file,
+        mode="a",
+        encoding="utf-8",
+    )
 
-        # консоль с цветами
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(ColorFormatter(datefmt="%d/%m/%Y %H:%M:%S"))
-        stream_handler.setLevel(logging.DEBUG if name == "aiogram" else LOG_LEVEL_NUM)
-        logger.addHandler(stream_handler)
+    file_handler.setLevel(logging.DEBUG)
 
-        logger.propagate = False
+    file_formatter = logging.Formatter(
+        fmt=log_format,
+        datefmt=date_format,
+    )
 
-    return logger
+    file_handler.setFormatter(file_formatter)
+
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
