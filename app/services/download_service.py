@@ -1,6 +1,5 @@
 from pathlib import Path
 
-from app.errors.service import InvalidInputKindError
 from app.providers.cover import CoverProvider
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
@@ -37,20 +36,10 @@ class DownloadService:
 
             return audio_path, cover_path
         
-        value = media.get("video")
-
-        if value is not None:
-            return await self.ytdlp_provider.download_video(
-                url=value,
-                output_dir=output_dir,
-            ), None
-        
-        raise InvalidInputKindError(
-            "invalid media download payload",
-            service="download",
-            operation="download_media",
-            details="invalid_download_payload",
-        )
+        return await self.ytdlp_provider.download_video(
+            url=media["video"],
+            output_dir=output_dir,
+        ), None
     
     async def download_on_spotify(self, track_id: str, output_dir: Path) -> tuple[Path, Path | None]:
         track = await self.spotify_provider.get_track(track_id)
