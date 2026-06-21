@@ -16,6 +16,14 @@ logger = getLogger(__name__)
 
 
 async def run_application(settings: Settings) -> None:
+    logger.info(
+        "Initializing application search_limit=%d max_upload_size_mb=%d media_proxy=%s telegram_proxy=%s",
+        settings.search_limit,
+        settings.max_upload_size_mb,
+        settings.media_proxy is not None,
+        settings.telegram_proxy is not None,
+    )
+
     session = AiohttpSession(proxy=settings.telegram_proxy.get_secret_value() if settings.telegram_proxy else None)
     bot = Bot(token=settings.bot_token.get_secret_value(), session=session)
     dispatcher = Dispatcher()
@@ -45,4 +53,6 @@ async def run_application(settings: Settings) -> None:
         logger.info("Starting Telegram bot")
         await dispatcher.start_polling(bot)
     finally:
+        logger.info("Stopping Telegram bot")
         await bot.session.close()
+        logger.info("Telegram bot stopped")

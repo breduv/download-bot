@@ -1,9 +1,13 @@
+from logging import getLogger
 from urllib.parse import urlparse
 
 from app.errors.service import EmptyQueryError, InvalidInputKindError, UnsupportedUrlError
 from app.models.search import SPOTIFY_HOSTS, TIKTOK_HOSTS, YOUTUBE_HOSTS, YOUTUBE_MUSIC_HOSTS, InputKind, ParsedInput
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
+
+
+logger = getLogger(__name__)
 
 
 class SearchService:
@@ -46,9 +50,11 @@ class SearchService:
     
     async def search(self, text: str) -> dict[str, str]:
         parsed_input = self._parse_input(text)
+        logger.debug("Search input parsed source=%s", parsed_input.source)
 
         if parsed_input.source == InputKind.QUERY:
             results = await self.spotify_provider.search_tracks(parsed_input.query)
+            logger.info("Spotify search completed results_count=%d", len(results))
             return {
                 f"sp:{track.track_id}": f"{track.artist} - {track.title}"
                 for track in results
@@ -56,6 +62,7 @@ class SearchService:
 
         if parsed_input.source == InputKind.YOUTUBE:
             formats = await self.ytdlp_provider.get_video_formats(parsed_input.query)
+            logger.info("YouTube formats loaded formats_count=%d", len(formats))
 
             video_id = formats[0].video_id
 
@@ -69,6 +76,7 @@ class SearchService:
         
         if parsed_input.source == InputKind.SPOTIFY:
             track = await self.spotify_provider.get_track(parsed_input.query)
+            logger.info("Spotify track resolved track_id=%s", track.track_id)
             result = {
                 "audio": f"{track.artist} - {track.title}",
                 "title": track.title,

@@ -1,4 +1,5 @@
 import asyncio
+from logging import getLogger
 from pathlib import Path
 from typing import Any, cast
 
@@ -8,6 +9,9 @@ from yt_dlp.utils import DownloadError as YtdlpDownloadError
 from app.core.config import Settings
 from app.errors.provider import DownloadError, EmptyResponseError, MediaTooLargeError, UnexpectedResponseError
 from app.models.media import AvailableVideoFormat
+
+
+logger = getLogger(__name__)
 
 
 class YtdlpProvider:
@@ -23,6 +27,11 @@ class YtdlpProvider:
         self.max_upload_size_bytes = settings.max_upload_size_mb * 1024 * 1024
 
     def _download(self, target: str, options: dict[str, Any], operation: str) -> dict[str, Any]:
+        logger.debug(
+            "yt-dlp extraction started operation=%s target_type=%s",
+            operation,
+            "url" if target.startswith(("http://", "https://")) else "search",
+        )
         try:
             with YoutubeDL(options) as ydl: # pyright: ignore[reportArgumentType]
                 raw_info = ydl.extract_info(target, download=True)
@@ -53,6 +62,7 @@ class YtdlpProvider:
         entries = info.get("entries")
 
         if entries is None:
+            logger.debug("yt-dlp extraction completed operation=%s", operation)
             return cast(dict[str, Any], info)
 
         if not isinstance(entries, list):
@@ -79,6 +89,7 @@ class YtdlpProvider:
                 operation=operation,
             )
 
+        logger.debug("yt-dlp extraction completed operation=%s", operation)
         return cast(dict[str, Any], entry)
     
     def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
@@ -143,6 +154,12 @@ class YtdlpProvider:
                 cover_path = candidate
                 break
 
+        logger.info(
+            "Audio file prepared media_id=%s size_bytes=%d cover=%s",
+            media_id,
+            filesize,
+            cover_path is not None,
+        )
         return file_path, cover_path
     
     async def download_audio(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
@@ -191,7 +208,13 @@ class YtdlpProvider:
                 operation="download_video",
                 details="selected_format" if format_id is not None else "",
             )
-        
+
+        logger.info(
+            "Video file prepared media_id=%s size_bytes=%d format_id=%s",
+            media_id,
+            filesize,
+            format_id or "auto",
+        )
         return file_path
     
     async def download_video(self, url: str, output_dir: Path, format_id: str|None = None) -> Path:
@@ -293,6 +316,7 @@ class YtdlpProvider:
                 details="formats",
             )
 
+        logger.debug("Video formats extracted formats_count=%d", len(result))
         return sorted(result, key=lambda item: item.height, reverse=True)
     
     async def get_video_formats(self, url: str) -> list[AvailableVideoFormat]:

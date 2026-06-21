@@ -1,8 +1,12 @@
+from logging import getLogger
 from pathlib import Path
 
 from app.providers.cover import CoverProvider
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
+
+
+logger = getLogger(__name__)
 
 
 class DownloadService:
@@ -15,6 +19,7 @@ class DownloadService:
         value = media.get("audio")
 
         if value is not None:
+            logger.info("Audio download started metadata=%s", "title" in media and "artist" in media)
             audio_path, cover_path = await self.ytdlp_provider.download_audio(
                 query_or_url=value,
                 output_dir=output_dir,
@@ -34,14 +39,19 @@ class DownloadService:
             if cover_path is not None:
                 await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
+            logger.info("Audio download completed cover=%s", cover_path is not None)
             return audio_path, cover_path
-        
-        return await self.ytdlp_provider.download_video(
+
+        logger.info("Video download started")
+        video_path = await self.ytdlp_provider.download_video(
             url=media["video"],
             output_dir=output_dir,
-        ), None
+        )
+        logger.info("Video download completed")
+        return video_path, None
     
     async def download_on_spotify(self, track_id: str, output_dir: Path) -> tuple[Path, Path | None]:
+        logger.info("Spotify selection download started track_id=%s", track_id)
         track = await self.spotify_provider.get_track(track_id)
 
         audio_path, cover_path = await self.ytdlp_provider.download_audio(
@@ -57,15 +67,20 @@ class DownloadService:
         if cover_path is not None:
             await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
+        logger.info("Spotify selection download completed cover=%s", cover_path is not None)
         return audio_path, cover_path
     
     async def download_on_youtube(self, url: str, format_id: str, output_dir: Path) -> tuple[Path, Path | None]:
+        logger.info("YouTube selection download started format_id=%s", format_id)
         if format_id == "-1":
             audio_path, cover_path = await self.ytdlp_provider.download_audio(url, output_dir)
 
             if cover_path is not None:
                 await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
+            logger.info("YouTube audio download completed cover=%s", cover_path is not None)
             return audio_path, cover_path
-        
-        return await self.ytdlp_provider.download_video(url, output_dir, format_id), None
+
+        video_path = await self.ytdlp_provider.download_video(url, output_dir, format_id)
+        logger.info("YouTube video download completed format_id=%s", format_id)
+        return video_path, None

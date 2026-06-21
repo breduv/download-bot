@@ -24,9 +24,17 @@ class BotHandlers:
             if msg.text is None or not msg.from_user:
                 return
 
+            logger.info(
+                "Text request received user_id=%s chat_id=%s text_length=%d",
+                msg.from_user.id,
+                msg.chat.id,
+                len(msg.text),
+            )
+
             response = await self.search_service.search(msg.text)
 
             if response.get("audio") is not None:
+                logger.info("Audio request resolved user_id=%s", msg.from_user.id)
                 loading_msg = await msg.answer("Скачиваю...")
                 try:
                     with TemporaryDirectory() as temp_dir:
@@ -39,12 +47,14 @@ class BotHandlers:
                             audio=FSInputFile(file_path),
                             thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                         )
+                        logger.info("Audio sent user_id=%s", msg.from_user.id)
                 finally:
                     await self._delete_loading_message(loading_msg)
 
                 return
 
             if response.get("video") is not None:
+                logger.info("Video request resolved user_id=%s", msg.from_user.id)
                 loading_msg = await msg.answer("Скачиваю...")
                 try:
                     with TemporaryDirectory() as temp_dir:
@@ -53,7 +63,8 @@ class BotHandlers:
                             Path(temp_dir),
                         )
 
-                        await msg.answer_video(video=FSInputFile(file_path))
+                    await msg.answer_video(video=FSInputFile(file_path))
+                    logger.info("Video sent user_id=%s", msg.from_user.id)
                 finally:
                     await self._delete_loading_message(loading_msg)
 
@@ -68,6 +79,11 @@ class BotHandlers:
                 text = "Выбери формат:"
 
             await msg.answer(text, reply_markup=keyboard)
+            logger.info(
+                "Selection keyboard sent user_id=%s options_count=%d",
+                msg.from_user.id,
+                len(response),
+            )
 
             return
         except (ProviderError, ServiceError) as exc:
@@ -90,6 +106,13 @@ class BotHandlers:
             msg = callback.message
             data = callback.data
 
+            logger.info(
+                "Callback received user_id=%s chat_id=%s callback_type=%s",
+                callback.from_user.id,
+                msg.chat.id,
+                data.partition(":")[0],
+            )
+
             await callback.answer()
 
             if data.startswith("sp:"):
@@ -107,6 +130,7 @@ class BotHandlers:
                             audio=FSInputFile(file_path),
                             thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                         )
+                        logger.info("Spotify audio sent user_id=%s", callback.from_user.id)
                 finally:
                     await self._delete_loading_message(loading_msg)
 
@@ -130,8 +154,14 @@ class BotHandlers:
                                 audio=FSInputFile(file_path),
                                 thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                             )
+                            logger.info("YouTube audio sent user_id=%s", callback.from_user.id)
                         else:
                             await msg.answer_video(video=FSInputFile(file_path))
+                            logger.info(
+                                "YouTube video sent user_id=%s format_id=%s",
+                                callback.from_user.id,
+                                format_id,
+                            )
                 finally:
                     await self._delete_loading_message(loading_msg)
 

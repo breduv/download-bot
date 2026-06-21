@@ -1,4 +1,5 @@
 import asyncio
+from logging import getLogger
 from pathlib import Path
 
 import aiohttp
@@ -9,9 +10,13 @@ from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPriv
 from app.errors.provider import DownloadError, UnexpectedResponseError
 
 
+logger = getLogger(__name__)
+
+
 class CoverProvider:
     async def download_cover(self, url: str, output_dir: Path, filename: str = "cover.jpg") -> Path:
         cover_path = output_dir / filename
+        logger.debug("Cover download started filename=%s", filename)
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -58,6 +63,7 @@ class CoverProvider:
                 operation="download_cover",
             ) from exc
 
+        logger.info("Cover downloaded size_bytes=%d", len(content))
         return cover_path
     
     def _set_mp3_cover(self, mp3_path: Path, cover_path: Path) -> None:
@@ -109,6 +115,7 @@ class CoverProvider:
             mp3_path,
             cover_path,
         )
+        logger.debug("MP3 cover embedded")
 
     def _set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:
         try:
@@ -136,3 +143,4 @@ class CoverProvider:
             title=title,
             artist=artist
         )
+        logger.debug("MP3 metadata written")

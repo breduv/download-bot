@@ -1,4 +1,5 @@
 import asyncio
+from logging import getLogger
 
 from spotipy.client import Spotify
 from spotipy.oauth2 import SpotifyClientCredentials
@@ -6,6 +7,9 @@ from spotipy.oauth2 import SpotifyClientCredentials
 from app.core.config import Settings
 from app.errors.provider import EmptyResponseError, TrackFetchError
 from app.models.media import TrackInfo
+
+
+logger = getLogger(__name__)
 
 
 class SpotifyProvider:
@@ -34,6 +38,7 @@ class SpotifyProvider:
         )
     
     async def get_track(self, track_id_or_url: str) -> TrackInfo:
+        logger.debug("Spotify get_track request started")
         try:
             item = await asyncio.to_thread(
                 self.client.track,
@@ -53,9 +58,12 @@ class SpotifyProvider:
                 operation="get_track",
             )
 
-        return self._convert_track(item)
+        track = self._convert_track(item)
+        logger.debug("Spotify get_track request completed track_id=%s", track.track_id)
+        return track
     
     async def search_tracks(self, query: str) -> list[TrackInfo]:
+        logger.debug("Spotify search request started query_length=%d", len(query))
         try:
             response = await asyncio.to_thread(
                 self.client.search,
@@ -88,4 +96,6 @@ class SpotifyProvider:
                 details="tracks",
             )
 
-        return [self._convert_track(item) for item in items]
+        tracks = [self._convert_track(item) for item in items]
+        logger.debug("Spotify search request completed results_count=%d", len(tracks))
+        return tracks
