@@ -7,7 +7,7 @@ from mutagen import MutagenError # pyright: ignore[reportPrivateImportUsage]
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPrivateImportUsage]
 
-from app.errors.provider import DownloadError, UnexpectedResponseError
+from app.errors.provider import DownloadError, ProviderTimeoutError, UnexpectedResponseError
 
 
 logger = getLogger(__name__)
@@ -50,7 +50,7 @@ class CoverProvider:
             ) from exc
 
         except TimeoutError as exc:
-            raise DownloadError(
+            raise ProviderTimeoutError(
                 "cover download timed out",
                 provider="cover",
                 operation="download_cover",

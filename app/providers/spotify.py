@@ -1,11 +1,12 @@
 import asyncio
 from logging import getLogger
 
+from requests.exceptions import Timeout as RequestsTimeout
 from spotipy.client import Spotify
 from spotipy.oauth2 import SpotifyClientCredentials
 
 from app.core.config import Settings
-from app.errors.provider import EmptyResponseError, TrackFetchError
+from app.errors.provider import EmptyResponseError, ProviderTimeoutError, TrackFetchError
 from app.models.media import TrackInfo
 
 
@@ -23,6 +24,8 @@ class SpotifyProvider:
                 "http": settings.media_proxy.get_secret_value() if settings.media_proxy else None,
                 "https": settings.media_proxy.get_secret_value() if settings.media_proxy else None,
             },
+            requests_timeout=20,
+            retries=3,
         )
 
         self.search_limit = settings.search_limit
@@ -44,6 +47,12 @@ class SpotifyProvider:
                 self.client.track,
                 track_id_or_url,
             )
+        except RequestsTimeout as exc:
+            raise ProviderTimeoutError(
+                "Spotify get track request timed out",
+                provider="spotify",
+                operation="get_track",
+            ) from exc
         except Exception as exc:
             raise TrackFetchError(
                 f"Spotify get track failed for id or url: {track_id_or_url}",
@@ -71,6 +80,12 @@ class SpotifyProvider:
                 type="track",
                 limit=self.search_limit,
             )
+        except RequestsTimeout as exc:
+            raise ProviderTimeoutError(
+                "Spotify search request timed out",
+                provider="spotify",
+                operation="search_tracks",
+            ) from exc
         except Exception as exc:
             raise TrackFetchError(
                 f"Spotify search failed for query: {query}",

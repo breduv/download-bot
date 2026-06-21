@@ -2,7 +2,15 @@ from logging import getLogger
 from urllib.parse import urlparse
 
 from app.errors.service import EmptyQueryError, InvalidInputKindError, UnsupportedUrlError
-from app.models.search import SPOTIFY_HOSTS, TIKTOK_HOSTS, YOUTUBE_HOSTS, YOUTUBE_MUSIC_HOSTS, InputKind, ParsedInput
+from app.models.search import (
+    PINTEREST_HOSTS,
+    SPOTIFY_HOSTS,
+    TIKTOK_HOSTS,
+    YOUTUBE_HOSTS,
+    YOUTUBE_MUSIC_HOSTS,
+    InputKind,
+    ParsedInput,
+)
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
 
@@ -45,7 +53,7 @@ class SearchService:
             return ParsedInput(InputKind.YOUTUBE, value)
         if host in YOUTUBE_MUSIC_HOSTS:
             return ParsedInput(InputKind.AUDIO, value)
-        if host in TIKTOK_HOSTS:
+        if host in TIKTOK_HOSTS or host in PINTEREST_HOSTS:
             return ParsedInput(InputKind.VIDEO, value)
 
         return ParsedInput(InputKind.UNSUPPORTED_URL, value)

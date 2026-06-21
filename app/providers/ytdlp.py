@@ -304,7 +304,7 @@ class YtdlpProvider:
             result.append(
                 AvailableVideoFormat(
                     video_id=media_id,
-                    format_id=int(format_id),
+                    format_id=format_id,
                     height=height,
                 )
             )

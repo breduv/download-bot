@@ -11,5 +11,5 @@ class TrackInfo:
 @dataclass(frozen=True)
 class AvailableVideoFormat:
     video_id: str
-    format_id: int
+    format_id: str
     height: int

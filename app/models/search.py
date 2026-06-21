@@ -21,6 +21,15 @@ SPOTIFY_HOSTS = {
     "spotify.link",
 }
 
+PINTEREST_HOSTS = {
+    "pinterest.com",
+    "www.pinterest.com",
+    "pinterest.ru",
+    "www.pinterest.ru",
+    "ru.pinterest.com",
+    "pin.it",
+}
+
 YOUTUBE_MUSIC_HOSTS = {
     "music.youtube.com",
 }

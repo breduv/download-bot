@@ -20,6 +20,12 @@ class ProviderError(Exception):
     def _build_public_message(self) -> str:
         match (self.code, self.provider, self.operation, self.details):
             # Spotify
+            case ("provider_timeout", "spotify", "get_track", _):
+                return "Spotify не ответил вовремя. Попробуй получить трек позже"
+
+            case ("provider_timeout", "spotify", "search_tracks", _):
+                return "Spotify не ответил вовремя. Попробуй повторить поиск позже"
+
             case ("track_fetch_error", "spotify", "get_track", _):
                 return "Не смог получить трек из Spotify. Проверь ссылку или попробуй позже"
 
@@ -81,6 +87,9 @@ class ProviderError(Exception):
                 return "Не удалось разобрать доступные форматы видео"
 
             # Обложки и метаданные
+            case ("provider_timeout", "cover", "download_cover", _):
+                return "Сервис обложек не ответил вовремя. Попробуй позже"
+
             case ("download_error", "cover", "download_cover", _):
                 return "Не удалось скачать обложку трека. Попробуй позже"
 
@@ -100,6 +109,10 @@ class ProviderError(Exception):
 
 class TrackFetchError(ProviderError):
     code: ClassVar[str] = "track_fetch_error"
+
+
+class ProviderTimeoutError(ProviderError):
+    code: ClassVar[str] = "provider_timeout"
 
 
 class DownloadError(ProviderError):
