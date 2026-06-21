@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from app.errors.service import InvalidInputKindError, UnsupportedUrlError
+from app.errors.service import EmptyQueryError, InvalidInputKindError, UnsupportedUrlError
 from app.models.search import SPOTIFY_HOSTS, TIKTOK_HOSTS, YOUTUBE_HOSTS, YOUTUBE_MUSIC_HOSTS, InputKind, ParsedInput
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
@@ -14,6 +14,12 @@ class SearchService:
     def _parse_input(self, text: str) -> ParsedInput:
         value = text.strip()
 
+        if not value:
+            raise EmptyQueryError(
+                "search query is empty",
+                service="search",
+            )
+
         parsed = urlparse(value)
 
         if parsed.scheme not in ("http", "https") and not parsed.netloc:
@@ -25,7 +31,6 @@ class SearchService:
             raise UnsupportedUrlError(
                 f"URL without host: {value}",
                 service="search",
-                details="missing_host",
             )
 
         if host in SPOTIFY_HOSTS:
@@ -89,11 +94,9 @@ class SearchService:
             raise UnsupportedUrlError(
                 f"unsupported url: {parsed_input.query}",
                 service="search",
-                details="unsupported_host",
             )
 
         raise InvalidInputKindError(
             f"invalid input kind: {parsed_input.source}",
             service="search",
-            details="unknown_kind",
         )

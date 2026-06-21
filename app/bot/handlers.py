@@ -140,8 +140,6 @@ class BotHandlers:
             raise InvalidCallbackDataError(
                 f"Unknown callback data: {data}",
                 service="bot",
-                operation="handle_callback",
-                details="unknown_prefix",
             )
         except (ProviderError, ServiceError) as exc:
             logger.warning("Failed to handle callback: %s", exc, exc_info=True)

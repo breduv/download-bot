@@ -19,38 +19,53 @@ class ProviderError(Exception):
 
     def _build_public_message(self) -> str:
         match (self.code, self.provider, self.operation, self.details):
-            # Spotify: получение трека по ссылке / id
+            # Spotify
             case ("track_fetch_error", "spotify", "get_track", _):
                 return "Не смог получить трек из Spotify. Проверь ссылку или попробуй позже"
 
             case ("empty_response", "spotify", "get_track", _):
-                return "Spotify не вернул трек по этой ссылке или ID"
+                return "Spotify вернул пустой ответ для этого трека. Попробуй позже"
 
-            # Spotify: поиск треков
             case ("track_fetch_error", "spotify", "search_tracks", _):
                 return "Не смог выполнить поиск в Spotify. Попробуй позже"
 
-            case ("empty_response", "spotify", "search_tracks", _):
-                return "Spotify ничего не вернул по этому запросу"
+            case ("empty_response", "spotify", "search_tracks", "response"):
+                return "Spotify вернул пустой ответ. Попробуй позже"
 
-            # yt-dlp: скачивание / извлечение
-            case ("download_error", "yt-dlp", "download", _):
-                return "Не удалось скачать медиафайл. Проверь ссылку или попробуй позже"
+            case ("empty_response", "spotify", "search_tracks", "tracks"):
+                return "В Spotify ничего не найдено по этому запросу"
 
-            case ("empty_response", "yt-dlp", "download", "extract_info"):
-                return "Не удалось получить информацию о видео. Попробуй другую ссылку"
+            # yt-dlp: аудио
+            case ("download_error", "yt-dlp", "download_audio", _):
+                return "Не удалось скачать аудио. Попробуй другую ссылку или запрос"
 
-            case ("empty_response", "yt-dlp", "download", "entries"):
-                return "По этому запросу не нашлось подходящего видео"
+            case ("empty_response", "yt-dlp", "download_audio", "entries"):
+                return "По этому запросу не удалось найти аудио"
 
-            case ("unexpected_response", "yt-dlp", "download", "info_type"):
-                return "Сервис вернул неожиданный ответ. Попробуй другую ссылку"
+            case ("empty_response", "yt-dlp", "download_audio", _):
+                return "Не удалось получить информацию об аудио. Проверь ссылку или запрос"
 
-            case ("unexpected_response", "yt-dlp", "download", "entries_type"):
-                return "Не удалось разобрать результаты поиска видео"
+            case ("unexpected_response", "yt-dlp", "download_audio", _):
+                return "Не удалось обработать данные аудио. Попробуй другую ссылку или запрос"
 
-            case ("unexpected_response", "yt-dlp", "download", "entry_type"):
-                return "Не удалось разобрать найденное видео"
+            case ("media_too_large", "yt-dlp", "download_audio", _):
+                return "Аудиофайл слишком большой для отправки. Попробуй другой трек"
+
+            # yt-dlp: видео
+            case ("download_error", "yt-dlp", "download_video", _):
+                return "Не удалось скачать видео. Проверь ссылку или попробуй позже"
+
+            case ("empty_response", "yt-dlp", "download_video", _):
+                return "Не удалось получить информацию о видео. Проверь ссылку"
+
+            case ("unexpected_response", "yt-dlp", "download_video", _):
+                return "Не удалось обработать данные видео. Попробуй другую ссылку"
+
+            case ("media_too_large", "yt-dlp", "download_video", "selected_format"):
+                return "Видеофайл слишком большой для отправки. Выбери более низкое качество"
+
+            case ("media_too_large", "yt-dlp", "download_video", _):
+                return "Видеофайл слишком большой для отправки. Попробуй другую ссылку"
 
             # yt-dlp: получение доступных форматов видео
             case ("download_error", "yt-dlp", "get_video_formats", _):
@@ -65,16 +80,6 @@ class ProviderError(Exception):
             case ("unexpected_response", "yt-dlp", "get_video_formats", _):
                 return "Не удалось разобрать доступные форматы видео"
 
-            # yt-dlp: проверка скачанного файла
-            case ("media_too_large", "yt-dlp", "download_media", _):
-                return "Файл слишком большой для отправки. Попробуй другую ссылку или более низкое качество"
-
-            case ("download_error", "yt-dlp", "download_media", "file_missing"):
-                return "Скачивание завершилось без файла. Попробуй ещё раз позже"
-
-            case ("unexpected_response", "yt-dlp", "download_media", "missing_media_id"):
-                return "Не удалось определить скачанный файл. Попробуй другую ссылку"
-
             # Обложки и метаданные
             case ("download_error", "cover", "download_cover", _):
                 return "Не удалось скачать обложку трека. Попробуй позже"
@@ -82,7 +87,7 @@ class ProviderError(Exception):
             case ("download_error", "cover", "set_mp3_cover", _):
                 return "Не удалось добавить обложку к аудиофайлу"
 
-            case ("unexpected_response", "cover", "set_mp3_cover", "unsupported_cover_extension"):
+            case ("unexpected_response", "cover", "set_mp3_cover", _):
                 return "Формат обложки не поддерживается"
 
             case ("download_error", "cover", "set_mp3_metadata", _):
@@ -90,7 +95,7 @@ class ProviderError(Exception):
 
             # fallback
             case _:
-                return "Не удалось обработать трек. Попробуй другую ссылку или запрос."
+                return "Не удалось обработать медиафайл. Попробуй другую ссылку или запрос"
 
 
 class TrackFetchError(ProviderError):

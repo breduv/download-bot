@@ -18,10 +18,9 @@ class CoverProvider:
                 async with session.get(url) as response:
                     if response.status != 200:
                         raise DownloadError(
-                            "failed to download cover",
+                            f"cover request returned status {response.status}",
                             provider="cover",
                             operation="download_cover",
-                            details="bad_status",
                         )
 
                     content = await response.read()
@@ -31,7 +30,6 @@ class CoverProvider:
                     "cover response is empty",
                     provider="cover",
                     operation="download_cover",
-                    details="empty_response",
                 )
 
             cover_path.write_bytes(content)
@@ -44,7 +42,6 @@ class CoverProvider:
                 "cover download request failed",
                 provider="cover",
                 operation="download_cover",
-                details="request_failed",
             ) from exc
 
         except TimeoutError as exc:
@@ -52,7 +49,13 @@ class CoverProvider:
                 "cover download timed out",
                 provider="cover",
                 operation="download_cover",
-                details="timeout",
+            ) from exc
+
+        except OSError as exc:
+            raise DownloadError(
+                "failed to save cover",
+                provider="cover",
+                operation="download_cover",
             ) from exc
 
         return cover_path
@@ -78,12 +81,11 @@ class CoverProvider:
 
             tags.save(mp3_path, v2_version=3)
 
-        except MutagenError as exc:
+        except (MutagenError, OSError) as exc:
             raise DownloadError(
                 "failed to embed cover into mp3",
                 provider="cover",
                 operation="set_mp3_cover",
-                details="mutagen_failed",
             ) from exc
 
     def _detect_mime(self, path: Path) -> str:
@@ -99,7 +101,6 @@ class CoverProvider:
                     f"unsupported cover image extension: {path.suffix}",
                     provider="cover",
                     operation="set_mp3_cover",
-                    details="unsupported_cover_extension",
                 )
             
     async def set_mp3_cover(self, mp3_path: Path, cover_path: Path) -> None:
@@ -121,12 +122,11 @@ class CoverProvider:
             tags["artist"] = artist
 
             tags.save(mp3_path)
-        except MutagenError as exc:
+        except (MutagenError, OSError) as exc:
             raise DownloadError(
                 "failed to set mp3 metadata",
                 provider="cover",
                 operation="set_mp3_metadata",
-                details="mutagen_failed",
             ) from exc
 
     async def set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:

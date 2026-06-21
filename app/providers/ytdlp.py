@@ -22,7 +22,7 @@ class YtdlpProvider:
         
         self.max_upload_size_bytes = settings.max_upload_size_mb * 1024 * 1024
 
-    def _download(self, target: str, options: dict[str, Any]) -> dict[str, Any]:
+    def _download(self, target: str, options: dict[str, Any], operation: str) -> dict[str, Any]:
         try:
             with YoutubeDL(options) as ydl: # pyright: ignore[reportArgumentType]
                 raw_info = ydl.extract_info(target, download=True)
@@ -31,8 +31,7 @@ class YtdlpProvider:
                     raise EmptyResponseError(
                         "yt-dlp returned empty response",
                         provider="yt-dlp",
-                        operation="download",
-                        details="extract_info"
+                        operation=operation,
                     )
                     
                 info = ydl.sanitize_info(raw_info)
@@ -41,15 +40,14 @@ class YtdlpProvider:
             raise DownloadError(
                 "yt-dlp failed to download target",
                 provider="yt-dlp",
-                operation="download"
+                operation=operation,
             ) from exc
 
         if not isinstance(info, dict):
             raise UnexpectedResponseError(
                 f"yt-dlp returned unexpected response type: {type(info).__name__}",
                 provider="yt-dlp",
-                operation="download",
-                details="info_type"
+                operation=operation,
             )
         
         entries = info.get("entries")
@@ -61,16 +59,15 @@ class YtdlpProvider:
             raise UnexpectedResponseError(
                 "yt-dlp returned invalid entries",
                 provider="yt-dlp",
-                operation="download",
-                details="entries_type"
+                operation=operation,
             )
 
         if len(entries) == 0:
             raise EmptyResponseError(
                 "yt-dlp returned empty entries",
                 provider="yt-dlp",
-                operation="download",
-                details="entries"
+                operation=operation,
+                details="entries",
             )
 
         entry = entries[0]
@@ -79,8 +76,7 @@ class YtdlpProvider:
             raise UnexpectedResponseError(
                 "yt-dlp returned invalid entry",
                 provider="yt-dlp",
-                operation="download",
-                details="entry_type"
+                operation=operation,
             )
 
         return cast(dict[str, Any], entry)
@@ -111,15 +107,14 @@ class YtdlpProvider:
             else f"ytsearch1:{query_or_url}"
         )
 
-        info = self._download(target, options)
+        info = self._download(target, options, operation="download_audio")
 
         media_id = info.get("id")
         if media_id is None:
             raise UnexpectedResponseError(
                 "yt-dlp returned info without media id",
                 provider="yt-dlp",
-                operation="download_media",
-                details="missing_media_id",
+                operation="download_audio",
             )
 
         file_path = output_dir / (media_id+".mp3")
@@ -127,8 +122,7 @@ class YtdlpProvider:
             raise DownloadError(
                 "downloaded file was not found",
                 provider="yt-dlp",
-                operation="download_media",
-                details="file_missing",
+                operation="download_audio",
             )
 
         filesize = file_path.stat().st_size
@@ -137,8 +131,7 @@ class YtdlpProvider:
             raise MediaTooLargeError(
                 "downloaded media file is too large",
                 provider="yt-dlp",
-                operation="download_media",
-                details="file_too_large",
+                operation="download_audio",
             )
         
         cover_path = None
@@ -171,15 +164,14 @@ class YtdlpProvider:
             "recodevideo": "mp4",
         }
 
-        info = self._download(url, options)
+        info = self._download(url, options, operation="download_video")
 
         media_id = info.get("id")
         if media_id is None:
             raise UnexpectedResponseError(
                 "yt-dlp returned info without media id",
                 provider="yt-dlp",
-                operation="download_media",
-                details="missing_media_id",
+                operation="download_video",
             )
 
         file_path = output_dir / (media_id+".mp4")
@@ -187,8 +179,7 @@ class YtdlpProvider:
             raise DownloadError(
                 "downloaded file was not found",
                 provider="yt-dlp",
-                operation="download_media",
-                details="file_missing",
+                operation="download_video",
             )
 
         filesize = file_path.stat().st_size
@@ -197,8 +188,8 @@ class YtdlpProvider:
             raise MediaTooLargeError(
                 "downloaded media file is too large",
                 provider="yt-dlp",
-                operation="download_media",
-                details="file_too_large",
+                operation="download_video",
+                details="selected_format" if format_id is not None else "",
             )
         
         return file_path
@@ -225,7 +216,6 @@ class YtdlpProvider:
                         "yt-dlp returned empty response",
                         provider="yt-dlp",
                         operation="get_video_formats",
-                        details="extract_info",
                     )
 
                 info = ydl.sanitize_info(raw_info)
@@ -242,7 +232,6 @@ class YtdlpProvider:
                 f"yt-dlp returned unexpected response type: {type(info).__name__}",
                 provider="yt-dlp",
                 operation="get_video_formats",
-                details="info_type",
             )
 
         formats = info.get("formats")
@@ -252,7 +241,6 @@ class YtdlpProvider:
                 "yt-dlp returned invalid formats",
                 provider="yt-dlp",
                 operation="get_video_formats",
-                details="formats_type",
             )
         
         media_id = info.get("id")
@@ -262,7 +250,6 @@ class YtdlpProvider:
                 "yt-dlp returned info without media id",
                 provider="yt-dlp",
                 operation="get_video_formats",
-                details="missing_media_id",
             )
 
         result: list[AvailableVideoFormat] = []

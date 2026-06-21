@@ -18,20 +18,17 @@ class ServiceError(Exception):
         super().__init__(self.message)
 
     def _build_public_message(self) -> str:
-        match (self.code, self.service, self.operation, self.details):
-            case ("empty_query", _, _, _):
+        match (self.code, self.service):
+            case ("empty_query", "search"):
                 return "Отправь название трека или ссылку"
 
-            case ("unsupported_url", _, _, _):
+            case ("unsupported_url", "search"):
                 return "Эта ссылка пока не поддерживается"
 
-            case ("invalid_input_kind", "download", "download_media", _):
-                return "Не удалось определить, что нужно скачать. Отправь запрос ещё раз"
-
-            case ("invalid_input_kind", _, _, _):
+            case ("invalid_input_kind", "search"):
                 return "Не удалось понять, что делать с этим запросом"
 
-            case ("invalid_callback_data", _, _, _):
+            case ("invalid_callback_data", "bot"):
                 return "Неизвестная кнопка"
 
             case _:
