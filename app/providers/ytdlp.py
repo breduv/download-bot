@@ -144,22 +144,11 @@ class YtdlpProvider:
         return file_path
     
     async def download_audio(self, query_or_url: str, output_dir: Path) -> Path:
-        try:
-            return await asyncio.to_thread(
-                self._download_audio_sync,
-                query_or_url,
-                output_dir,
-            )
-        except ProviderError:
-            raise
-
-        except Exception as exc:
-            raise DownloadError(
-                "unexpected error during audio download",
-                provider="yt-dlp",
-                operation="download_audio",
-                details="unexpected",
-            ) from exc
+        return await asyncio.to_thread(
+            self._download_audio_sync,
+            query_or_url,
+            output_dir,
+        )
         
     def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
         if format_id == None:
@@ -206,23 +195,12 @@ class YtdlpProvider:
         return file_path
     
     async def download_video(self, url: str, output_dir: Path, format_id: str|None = None) -> Path:
-        try:
-            return await asyncio.to_thread(
-                self._download_video_sync,
-                url,
-                format_id,
-                output_dir,
-            )
-        except ProviderError:
-            raise
-
-        except Exception as exc:
-            raise DownloadError(
-                "unexpected error during audio download",
-                provider="yt-dlp",
-                operation="download_video",
-                details="unexpected",
-            ) from exc
+        return await asyncio.to_thread(
+            self._download_video_sync,
+            url,
+            format_id,
+            output_dir,
+        )
         
     def _get_video_formats_sync(self, url: str) -> list[AvailableVideoFormat]:
         options = self.base_options | {
@@ -322,19 +300,7 @@ class YtdlpProvider:
         return sorted(result, key=lambda item: item.height)
     
     async def get_video_formats(self, url: str) -> list[AvailableVideoFormat]:
-        try:
-            return await asyncio.to_thread(
-                self._get_video_formats_sync,
-                url,
-            )
-
-        except ProviderError:
-            raise
-
-        except Exception as exc:
-            raise DownloadError(
-                "unexpected error during video formats extraction",
-                provider="yt-dlp",
-                operation="get_video_formats",
-                details="unexpected",
-            ) from exc
+        return await asyncio.to_thread(
+            self._get_video_formats_sync,
+            url,
+        )
