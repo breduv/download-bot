@@ -120,11 +120,17 @@ class BotHandlers:
             video_url = f"https://www.youtube.com/watch?v={video_id}"
 
             with TemporaryDirectory() as temp_dir:
-                file_path = await self.download_service.download_on_youtube(
+                file_path, cover_path = await self.download_service.download_on_youtube(
                     video_url,
                     format_id,
                     Path(temp_dir),
                 )
+
+                if format_id == "-1":
+                    await msg.answer_audio(
+                        audio=FSInputFile(file_path),
+                        thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
+                    )
 
                 await msg.answer_video(
                     video=FSInputFile(file_path),

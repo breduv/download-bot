@@ -85,7 +85,7 @@ class YtdlpProvider:
 
         return cast(dict[str, Any], entry)
     
-    def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> Path:
+    def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
         options = self.base_options | {
             "format": "bestaudio/best[acodec!=none]",
             "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
@@ -141,9 +141,17 @@ class YtdlpProvider:
                 details="file_too_large",
             )
         
-        return file_path
+        cover_path = None
+        
+        for suffix in (".jpg", ".jpeg", ".png", ".webp"):
+            cover_path = output_dir / f"{media_id}{suffix}"
+
+            if cover_path.is_file():
+                break
+        
+        return file_path, cover_path
     
-    async def download_audio(self, query_or_url: str, output_dir: Path) -> Path:
+    async def download_audio(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
         return await asyncio.to_thread(
             self._download_audio_sync,
             query_or_url,

@@ -17,7 +17,7 @@ class DownloadService:
         value = media.get("audio")
 
         if value is not None:
-            audio_path = await self.ytdlp_provider.download_audio(
+            audio_path, cover_path = await self.ytdlp_provider.download_audio(
                 query_or_url=value,
                 output_dir=output_dir,
             )
@@ -30,11 +30,9 @@ class DownloadService:
 
             cover_url = media.get("cover_url")
 
-            if not cover_url:
-                return audio_path, None
-            
-            cover_path = await self.cover_provaider.download_cover(cover_url, output_dir)
-            await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
+            if cover_url is not None:
+                cover_path = await self.cover_provaider.download_cover(cover_url, output_dir)
+                await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
             return audio_path, cover_path
         
@@ -55,9 +53,8 @@ class DownloadService:
     
     async def download_on_spotify(self, track_id: str, output_dir: Path) -> tuple[Path, Path | None]:
         track = await self.spotify_provider.get_track(track_id)
-        cover_path = None
 
-        audio_path = await self.ytdlp_provider.download_audio(
+        audio_path, cover_path = await self.ytdlp_provider.download_audio(
                 query_or_url=f"{track.artist} - {track.title}",
                 output_dir=output_dir,
             )
@@ -70,8 +67,8 @@ class DownloadService:
 
         return audio_path, cover_path
     
-    async def download_on_youtube(self, url: str, format_id: str, output_dir: Path) -> Path:
+    async def download_on_youtube(self, url: str, format_id: str, output_dir: Path) -> tuple[Path, Path | None]:
         if format_id == "-1":
             return await self.ytdlp_provider.download_audio(url, output_dir)
         
-        return await self.ytdlp_provider.download_video(url, output_dir, format_id)
+        return await self.ytdlp_provider.download_video(url, output_dir, format_id), None
