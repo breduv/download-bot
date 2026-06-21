@@ -40,6 +40,8 @@ class SearchService:
         if host in SPOTIFY_HOSTS:
             return ParsedInput(InputKind.SPOTIFY, value)
         if host in YOUTUBE_HOSTS:
+            if parsed.path.startswith("/shorts/"):
+                return ParsedInput(InputKind.VIDEO, value)
             return ParsedInput(InputKind.YOUTUBE, value)
         if host in YOUTUBE_MUSIC_HOSTS:
             return ParsedInput(InputKind.AUDIO, value)
