@@ -19,7 +19,8 @@ class YtdlpProvider:
         self.base_options: dict[str, Any] = {
             "quiet": True,
             "no_warnings": False,
-            "noplaylist": True
+            "noplaylist": True,
+            "noprogress": True,
         }
         if settings.media_proxy:
             self.base_options["proxy"] = settings.media_proxy.get_secret_value()
