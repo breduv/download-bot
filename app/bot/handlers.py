@@ -63,8 +63,8 @@ class BotHandlers:
                             Path(temp_dir),
                         )
 
-                    await msg.answer_video(video=FSInputFile(file_path))
-                    logger.info("Video sent user_id=%s", msg.from_user.id)
+                        await msg.answer_video(video=FSInputFile(file_path))
+                        logger.info("Video sent user_id=%s", msg.from_user.id)
                 finally:
                     await self._delete_loading_message(loading_msg)
 
