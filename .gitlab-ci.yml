@@ -1,0 +1,32 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_BUILDKIT: "1"
+  BUILDKIT_PROGRESS: "plain"
+  IMAGE_NAME: "download-bot"
+
+build_image:
+  stage: build
+  script:
+    - echo "IMAGE_TAG=$CI_COMMIT_SHORT_SHA" > build.env
+    - docker build -t "$IMAGE_NAME:$CI_COMMIT_SHORT_SHA" .
+  artifacts:
+    reports:
+      dotenv: build.env
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying $IMAGE_NAME:$IMAGE_TAG"
+    - IMAGE_TAG="$IMAGE_TAG" docker compose up -d --no-build --remove-orphans
+
+    - docker image prune -af
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: on_success

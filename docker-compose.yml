@@ -1,0 +1,27 @@
+services:
+  download-bot:
+    image: download-bot:${IMAGE_TAG:-latest}
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: download-bot
+
+    restart: unless-stopped
+
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      MEDIA_PROXY: ${MEDIA_PROXY}
+      TELEGRAM_PROXY: ${TELEGRAM_PROXY}
+      LOG_LEVEL: ${LOG_LEVEL}
+      SEARCH_LIMIT: ${SEARCH_LIMIT}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB}
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "1"
