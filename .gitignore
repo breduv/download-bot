@@ -1,2 +1,5 @@
 .env
 requirements.in
+**/__pycache__/
+.cache
+/logs

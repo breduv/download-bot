@@ -3,6 +3,7 @@ from pathlib import Path
 
 import aiohttp
 from mutagen import MutagenError # pyright: ignore[reportPrivateImportUsage]
+from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPrivateImportUsage]
 
 from app.errors.provider import DownloadError, UnexpectedResponseError
@@ -106,4 +107,24 @@ class CoverProvider:
             self._set_mp3_cover,
             mp3_path,
             cover_path,
+        )
+
+    def _set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:
+        try:
+            tags = EasyID3(mp3_path)
+        except ID3NoHeaderError:
+            tags = EasyID3()
+            tags.save(mp3_path)
+
+        tags["title"] = title
+        tags["artist"] = artist
+
+        tags.save(mp3_path)
+
+    async def set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:
+        await asyncio.to_thread(
+            self._set_mp3_metadata,
+            mp3_path,
+            title=title,
+            artist=artist
         )

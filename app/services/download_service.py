@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Literal
 
 from app.errors.service import InvalidInputKindError
-from app.models.download import MediaDownloadPayload
 from app.providers.cover import CoverProvider
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
@@ -14,7 +13,7 @@ class DownloadService:
         self.ytdlp_provider = ytdlp_provider
         self.cover_provaider = cover_provaider
 
-    async def download_media(self, media: dict[Literal["audio", "video", "cover_url"], str], output_dir: Path,) -> Path:
+    async def download_media(self, media: dict[str, str], output_dir: Path,) -> Path:
         value = media.get("audio")
 
         if value is not None:
@@ -22,7 +21,15 @@ class DownloadService:
                 query_or_url=value,
                 output_dir=output_dir,
             )
+
+            title = media.get("title")
+            artist = media.get("artist")
+
+            if title is not None and artist is not None:
+                await self.cover_provaider.set_mp3_metadata(audio_path, title=title, artist=artist)
+
             cover_url = media.get("cover_url")
+
             if not cover_url:
                 return audio_path
             

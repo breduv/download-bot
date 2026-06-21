@@ -8,4 +8,4 @@ if __name__ == "__main__":
     settings = get_settings()
     configure_logging(level=getattr(logging, settings.log_level))
     logging.getLogger("aiogram").setLevel(logging.WARNING)
-    asyncio.run(run_application())
+    asyncio.run(run_application(settings))

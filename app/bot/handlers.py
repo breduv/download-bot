@@ -1,7 +1,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from aiogram.types import Message
+from aiogram.types import FSInputFile, Message
 
 from app.bot.keyboard import build_search_results_keyboard
 from app.services.download_service import DownloadService
@@ -24,11 +24,23 @@ class BotHandlers:
 
         if audio is not None:
             with TemporaryDirectory() as temp_dir:
+                cover_url = response.get("cover_url")
+
+                media = {"audio": audio}
+
+                if cover_url is not None:
+                    media["cover_url"] = cover_url
+
                 file_path = await self.download_service.download_media(
-                    {"audio": audio},
+                    media,
                     Path(temp_dir),
                 )
-                ...
+
+                await msg.answer_audio(
+                    audio=FSInputFile(file_path),
+                )
+
+                return
 
         elif video is not None:
             with TemporaryDirectory() as temp_dir:
@@ -36,7 +48,11 @@ class BotHandlers:
                     {"video": video},
                     Path(temp_dir),
                 )
-                ...
+                await msg.answer_video(
+                    video=FSInputFile(file_path),
+                )
+
+                return
         else:
             keyboard = build_search_results_keyboard(response)
             text = "Выбери вариант:"
@@ -51,5 +67,7 @@ class BotHandlers:
                 text,
                 reply_markup=keyboard,
             )
+
+            return
 
             

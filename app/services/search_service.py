@@ -59,7 +59,9 @@ class SearchService:
         if parsed_input.source == InputKind.SPOTIFY:
             track = await self.spotify_provider.get_track(parsed_input.query)
             result = {
-                "audio": f"{track.artist} - {track.title}"
+                "audio": f"{track.artist} - {track.title}",
+                "title": track.title,
+                "artist": track.artist
             }
 
             cover_url = track.cover_url

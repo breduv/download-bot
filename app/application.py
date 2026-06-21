@@ -1,0 +1,48 @@
+from logging import getLogger
+
+from aiogram import Bot, Dispatcher
+from aiogram.client.session.aiohttp import AiohttpSession
+
+from app.bot.router import setup_router
+from app.core import Settings
+from app.providers.cover import CoverProvider
+from app.providers.spotify import SpotifyProvider
+from app.providers.ytdlp import YtdlpProvider
+from app.services.download_service import DownloadService
+from app.services.search_service import SearchService
+
+
+logger = getLogger(__name__)
+
+
+async def run_application(settings: Settings) -> None:
+    session = AiohttpSession(proxy=settings.telegram_proxy.get_secret_value() if settings.telegram_proxy else None)
+    bot = Bot(token=settings.bot_token.get_secret_value(), session=session)
+    dispatcher = Dispatcher()
+
+    spotify_provider = SpotifyProvider(settings)
+    ytdlp_provider = YtdlpProvider(settings)
+    cover_provaider = CoverProvider()
+
+    search_service = SearchService(
+        spotify_provider=spotify_provider,
+        ytdlp_provider=ytdlp_provider,
+    )
+    download_service = DownloadService(
+        spotify_provider=spotify_provider,
+        ytdlp_provider=ytdlp_provider,
+        cover_provaider=cover_provaider
+    )
+
+    router = setup_router(
+        search_service=search_service,
+        download_service=download_service,
+    )
+    dispatcher.include_router(router)
+
+    try:
+        # await bot.set_my_commands(...)
+        logger.info("Starting Telegram bot")
+        await dispatcher.start_polling(bot)
+    finally:
+        await bot.session.close()
