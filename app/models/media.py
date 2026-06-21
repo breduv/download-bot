@@ -11,11 +11,7 @@ class TrackInfo:
     track_id: str
 
 @dataclass(frozen=True)
-class DownloadedMedia:
-    filesize: int
-    path: Path
-
-@dataclass(frozen=True)
 class AvailableVideoFormat:
+    video_id: str
     format_id: int
     height: int

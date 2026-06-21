@@ -7,7 +7,7 @@ from yt_dlp.utils import DownloadError as YtdlpDownloadError
 
 from app.core.config import Settings
 from app.errors.provider import DownloadError, EmptyResponseError, MediaTooLargeError, ProviderError, UnexpectedResponseError
-from app.models.media import AvailableVideoFormat, DownloadedMedia
+from app.models.media import AvailableVideoFormat
 
 
 class YtdlpProvider:
@@ -85,15 +85,24 @@ class YtdlpProvider:
 
         return cast(dict[str, Any], entry)
     
-    def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> DownloadedMedia:
+    def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> Path:
         options = self.base_options | {
             "format": "bestaudio/best[acodec!=none]",
             "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }],
+            "writethumbnail": True,
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "mp3",
+                    "preferredquality": "192",
+                },
+                {
+                    "key": "FFmpegMetadata",
+                },
+                {
+                    "key": "EmbedThumbnail",
+                },
+            ],
         }
 
         target = (
@@ -113,7 +122,7 @@ class YtdlpProvider:
                 details="missing_media_id",
             )
 
-        file_path = output_dir / (str(media_id)+".mp3")
+        file_path = output_dir / (media_id+".mp3")
         if not file_path.is_file():
             raise DownloadError(
                 "downloaded file was not found",
@@ -125,7 +134,6 @@ class YtdlpProvider:
         filesize = file_path.stat().st_size
         
         if filesize > self.max_upload_size_bytes:
-            file_path.unlink(missing_ok=True)
             raise MediaTooLargeError(
                 "downloaded media file is too large",
                 provider="yt-dlp",
@@ -133,12 +141,9 @@ class YtdlpProvider:
                 details="file_too_large",
             )
         
-        return DownloadedMedia(
-            filesize=filesize,
-            path=file_path
-        )
+        return file_path
     
-    async def download_audio(self, query_or_url: str, output_dir: Path) -> DownloadedMedia:
+    async def download_audio(self, query_or_url: str, output_dir: Path) -> Path:
         try:
             return await asyncio.to_thread(
                 self._download_audio_sync,
@@ -156,7 +161,7 @@ class YtdlpProvider:
                 details="unexpected",
             ) from exc
         
-    def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> DownloadedMedia:
+    def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
         if format_id == None:
             format = "bestvideo*"
         else:
@@ -179,7 +184,7 @@ class YtdlpProvider:
                 details="missing_media_id",
             )
 
-        file_path = output_dir / (str(media_id)+".mp3")
+        file_path = output_dir / (media_id+".mp4")
         if not file_path.is_file():
             raise DownloadError(
                 "downloaded file was not found",
@@ -191,7 +196,6 @@ class YtdlpProvider:
         filesize = file_path.stat().st_size
         
         if filesize > self.max_upload_size_bytes:
-            file_path.unlink(missing_ok=True)
             raise MediaTooLargeError(
                 "downloaded media file is too large",
                 provider="yt-dlp",
@@ -199,12 +203,9 @@ class YtdlpProvider:
                 details="file_too_large",
             )
         
-        return DownloadedMedia(
-            filesize=filesize,
-            path=file_path
-        )
+        return file_path
     
-    async def download_video(self, url: str, output_dir: Path, format_id: str|None = None) -> DownloadedMedia:
+    async def download_video(self, url: str, output_dir: Path, format_id: str|None = None) -> Path:
         try:
             return await asyncio.to_thread(
                 self._download_video_sync,
@@ -266,6 +267,16 @@ class YtdlpProvider:
                 operation="get_video_formats",
                 details="formats_type",
             )
+        
+        media_id = info.get("id")
+
+        if media_id is None:
+            raise UnexpectedResponseError(
+                "yt-dlp returned info without media id",
+                provider="yt-dlp",
+                operation="get_video_formats",
+                details="missing_media_id",
+            )
 
         result: list[AvailableVideoFormat] = []
         seen_heights: set[int] = set()
@@ -294,6 +305,7 @@ class YtdlpProvider:
 
             result.append(
                 AvailableVideoFormat(
+                    video_id=media_id,
                     format_id=format_id,
                     height=height,
                 )
