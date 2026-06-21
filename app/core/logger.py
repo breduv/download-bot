@@ -4,7 +4,7 @@ import sys
 
 
 def configure_logging(level: int = logging.INFO, log_file: str = "logs/logs.log") -> None:
-    log_format = "[%(asctime)s.%(msecs)03d] %(module)10s:%(lineno)-3d %(levelname)-16s - %(message)s"
+    log_format = "[%(asctime)s.%(msecs)03d] %(module)15s:%(lineno)-3d %(levelname)-7s - %(message)s"
     date_format = "%Y-%m-%d %H:%M:%S"
 
     root_logger = logging.getLogger()

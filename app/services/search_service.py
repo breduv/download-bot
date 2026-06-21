@@ -50,11 +50,17 @@ class SearchService:
             }
 
         if parsed_input.source == InputKind.YOUTUBE:
-            results = await self.ytdlp_provider.get_video_formats(parsed_input.query)
-            return {
+            formats = await self.ytdlp_provider.get_video_formats(parsed_input.query)
+
+            video_id = formats[0].video_id
+
+            results = {
                 f"yt:{video.video_id}:{video.format_id}": f"{video.height}p"
-                for video in results
+                for video in formats
             }
+            results[f"yt:{video_id}|-1"] = "Только звук"
+
+            return results
         
         if parsed_input.source == InputKind.SPOTIFY:
             track = await self.spotify_provider.get_track(parsed_input.query)

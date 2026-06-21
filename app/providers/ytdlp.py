@@ -267,7 +267,7 @@ class YtdlpProvider:
             height = item.get("height")
             vcodec = item.get("vcodec")
 
-            if not isinstance(format_id, int):
+            if not isinstance(format_id, str):
                 continue
 
             if not isinstance(height, int):
@@ -284,7 +284,7 @@ class YtdlpProvider:
             result.append(
                 AvailableVideoFormat(
                     video_id=media_id,
-                    format_id=format_id,
+                    format_id=int(format_id),
                     height=height,
                 )
             )
@@ -297,7 +297,7 @@ class YtdlpProvider:
                 details="formats",
             )
 
-        return sorted(result, key=lambda item: item.height)
+        return sorted(result, key=lambda item: item.height, reverse=True)
     
     async def get_video_formats(self, url: str) -> list[AvailableVideoFormat]:
         return await asyncio.to_thread(
