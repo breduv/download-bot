@@ -32,7 +32,7 @@ class BotHandlers:
                 if cover_url is not None:
                     media["cover_url"] = cover_url
 
-                file_path = await self.download_service.download_media(
+                file_path, cover_path = await self.download_service.download_media(
                     media,
                     Path(temp_dir),
                 )
@@ -41,6 +41,7 @@ class BotHandlers:
 
                 await msg.answer_audio(
                     audio=FSInputFile(file_path),
+                    thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                 )
 
             return
@@ -56,7 +57,7 @@ class BotHandlers:
                 await loading_msg.delete()
 
                 await msg.answer_video(
-                    video=FSInputFile(file_path),
+                    video=FSInputFile(file_path[0]),
                 )
 
             return
@@ -99,7 +100,7 @@ class BotHandlers:
             track_id = data.removeprefix("sp:")
 
             with TemporaryDirectory() as temp_dir:
-                file_path = await self.download_service.download_on_spotify(
+                file_path, cover_path = await self.download_service.download_on_spotify(
                     track_id,
                     Path(temp_dir),
                 )
@@ -108,6 +109,7 @@ class BotHandlers:
 
                 await msg.answer_audio(
                     audio=FSInputFile(file_path),
+                    thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                 )
 
             return

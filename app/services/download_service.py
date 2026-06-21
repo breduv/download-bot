@@ -13,7 +13,7 @@ class DownloadService:
         self.ytdlp_provider = ytdlp_provider
         self.cover_provaider = cover_provaider
 
-    async def download_media(self, media: dict[str, str], output_dir: Path,) -> Path:
+    async def download_media(self, media: dict[str, str], output_dir: Path,) -> tuple[Path, Path | None]:
         value = media.get("audio")
 
         if value is not None:
@@ -31,12 +31,12 @@ class DownloadService:
             cover_url = media.get("cover_url")
 
             if not cover_url:
-                return audio_path
+                return audio_path, None
             
             cover_path = await self.cover_provaider.download_cover(cover_url, output_dir)
             await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
-            return audio_path
+            return audio_path, cover_path
         
         value = media.get("video")
 
@@ -44,7 +44,7 @@ class DownloadService:
             return await self.ytdlp_provider.download_video(
                 url=value,
                 output_dir=output_dir,
-            )
+            ), None
         
         raise InvalidInputKindError(
             "invalid media download payload",
@@ -53,8 +53,9 @@ class DownloadService:
             details="invalid_download_payload",
         )
     
-    async def download_on_spotify(self, track_id: str, output_dir: Path) -> Path:
+    async def download_on_spotify(self, track_id: str, output_dir: Path) -> tuple[Path, Path | None]:
         track = await self.spotify_provider.get_track(track_id)
+        cover_path = None
 
         audio_path = await self.ytdlp_provider.download_audio(
                 query_or_url=f"{track.artist} - {track.title}",
@@ -67,7 +68,7 @@ class DownloadService:
             cover_path = await self.cover_provaider.download_cover(track.cover_url, output_dir)
             await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
-        return audio_path
+        return audio_path, cover_path
     
     async def download_on_youtube(self, url: str, format_id: str, output_dir: Path) -> Path:
         if format_id == "-1":
