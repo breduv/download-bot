@@ -24,10 +24,12 @@ class SpotifyProvider:
         self.search_limit = settings.search_limit
 
     def _convert_track(self, item: dict) -> TrackInfo:
+        images = item["album"]["images"]
+
         return TrackInfo(
             title=item["name"],
             artist = ", ".join(artist["name"] for artist in item["artists"]),
-            cover_url=item["album"]["images"][0]["url"],
+            cover_url=images[0]["url"] if images else None,
             track_id=item["id"],
         )
     
@@ -46,9 +48,9 @@ class SpotifyProvider:
 
         if item is None:
             raise EmptyResponseError(
-                f"Track not found for id or url: {track_id_or_url}",
+                f"Spotify returned no track for id or url: {track_id_or_url}",
                 provider="spotify",
-                operation="get_track"
+                operation="get_track",
             )
 
         return self._convert_track(item)
@@ -67,14 +69,23 @@ class SpotifyProvider:
                 provider="spotify",
                 operation="search_tracks"
             ) from exc
-        
+
         if response is None:
             raise EmptyResponseError(
                 f"Spotify search returned no response for query: {query}",
                 provider="spotify",
-                operation="search_tracks"
+                operation="search_tracks",
+                details="response",
             )
 
         items = response["tracks"]["items"]
+
+        if not items:
+            raise EmptyResponseError(
+                f"Spotify search returned no tracks for query: {query}",
+                provider="spotify",
+                operation="search_tracks",
+                details="tracks",
+            )
 
         return [self._convert_track(item) for item in items]

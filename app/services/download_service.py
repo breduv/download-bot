@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Literal
 
 from app.errors.service import InvalidInputKindError
 from app.providers.cover import CoverProvider
@@ -78,6 +77,6 @@ class DownloadService:
             if cover_path is not None:
                 await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
-            return await self.ytdlp_provider.download_audio(url, output_dir)
+            return audio_path, cover_path
         
         return await self.ytdlp_provider.download_video(url, output_dir, format_id), None

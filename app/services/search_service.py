@@ -1,6 +1,6 @@
 from urllib.parse import urlparse
 
-from app.errors.service import EmptyQueryError, InvalidInputKindError, UnsupportedUrlError
+from app.errors.service import InvalidInputKindError, UnsupportedUrlError
 from app.models.search import SPOTIFY_HOSTS, TIKTOK_HOSTS, YOUTUBE_HOSTS, YOUTUBE_MUSIC_HOSTS, InputKind, ParsedInput
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider

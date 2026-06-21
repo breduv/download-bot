@@ -111,15 +111,23 @@ class CoverProvider:
 
     def _set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:
         try:
-            tags = EasyID3(mp3_path)
-        except ID3NoHeaderError:
-            tags = EasyID3()
+            try:
+                tags = EasyID3(mp3_path)
+            except ID3NoHeaderError:
+                tags = EasyID3()
+                tags.save(mp3_path)
+
+            tags["title"] = title
+            tags["artist"] = artist
+
             tags.save(mp3_path)
-
-        tags["title"] = title
-        tags["artist"] = artist
-
-        tags.save(mp3_path)
+        except MutagenError as exc:
+            raise DownloadError(
+                "failed to set mp3 metadata",
+                provider="cover",
+                operation="set_mp3_metadata",
+                details="mutagen_failed",
+            ) from exc
 
     async def set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:
         await asyncio.to_thread(

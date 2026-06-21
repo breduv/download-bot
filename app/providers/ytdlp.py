@@ -6,7 +6,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError as YtdlpDownloadError
 
 from app.core.config import Settings
-from app.errors.provider import DownloadError, EmptyResponseError, MediaTooLargeError, ProviderError, UnexpectedResponseError
+from app.errors.provider import DownloadError, EmptyResponseError, MediaTooLargeError, UnexpectedResponseError
 from app.models.media import AvailableVideoFormat
 
 
