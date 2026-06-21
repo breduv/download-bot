@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 
 from app.errors.service import EmptyQueryError, InvalidInputKindError, UnsupportedUrlError
 from app.models.search import (
+    INSTAGRAM_HOSTS,
     PINTEREST_HOSTS,
     SPOTIFY_HOSTS,
     TIKTOK_HOSTS,
@@ -53,7 +54,7 @@ class SearchService:
             return ParsedInput(InputKind.YOUTUBE, value)
         if host in YOUTUBE_MUSIC_HOSTS:
             return ParsedInput(InputKind.AUDIO, value)
-        if host in TIKTOK_HOSTS or host in PINTEREST_HOSTS:
+        if host in TIKTOK_HOSTS or host in PINTEREST_HOSTS or host in INSTAGRAM_HOSTS:
             return ParsedInput(InputKind.VIDEO, value)
 
         return ParsedInput(InputKind.UNSUPPORTED_URL, value)

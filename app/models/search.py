@@ -48,3 +48,9 @@ TIKTOK_HOSTS = {
     "vm.tiktok.com",
     "vt.tiktok.com",
 }
+
+INSTAGRAM_HOSTS = {
+    "instagram.com",
+    "www.instagram.com",
+    "m.instagram.com",
+}
