@@ -18,4 +18,9 @@ def setup_router(search_service: SearchService, download_service: DownloadServic
         F.text,
     )
 
+    router.callback_query.register(
+        handlers.handle_callback,
+        F.data.startswith("sp:") | F.data.startswith("yt:"),
+    )
+
     return router

@@ -58,7 +58,7 @@ class SearchService:
                 f"yt:{video.video_id}:{video.format_id}": f"{video.height}p"
                 for video in formats
             }
-            results[f"yt:{video_id}|-1"] = "Только звук"
+            results[f"yt:{video_id}:-1"] = "Только звук"
 
             return results
         
