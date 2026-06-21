@@ -32,6 +32,8 @@ class DownloadService:
 
             if cover_url is not None:
                 cover_path = await self.cover_provaider.download_cover(cover_url, output_dir)
+
+            if cover_path is not None:
                 await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
             return audio_path, cover_path
@@ -63,12 +65,19 @@ class DownloadService:
 
         if track.cover_url is not None:
             cover_path = await self.cover_provaider.download_cover(track.cover_url, output_dir)
+        
+        if cover_path is not None:
             await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
 
         return audio_path, cover_path
     
     async def download_on_youtube(self, url: str, format_id: str, output_dir: Path) -> tuple[Path, Path | None]:
         if format_id == "-1":
+            audio_path, cover_path = await self.ytdlp_provider.download_audio(url, output_dir)
+
+            if cover_path is not None:
+                await self.cover_provaider.set_mp3_cover(audio_path, cover_path)
+
             return await self.ytdlp_provider.download_audio(url, output_dir)
         
         return await self.ytdlp_provider.download_video(url, output_dir, format_id), None

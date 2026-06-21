@@ -99,9 +99,9 @@ class YtdlpProvider:
                 {
                     "key": "FFmpegMetadata",
                 },
-                {
-                    "key": "EmbedThumbnail",
-                },
+                # {
+                #     "key": "EmbedThumbnail",
+                # },
             ],
         }
 
@@ -144,11 +144,12 @@ class YtdlpProvider:
         cover_path = None
         
         for suffix in (".jpg", ".jpeg", ".png", ".webp"):
-            cover_path = output_dir / f"{media_id}{suffix}"
+            candidate = output_dir / f"{media_id}{suffix}"
 
-            if cover_path.is_file():
+            if candidate.is_file():
+                cover_path = candidate
                 break
-        
+
         return file_path, cover_path
     
     async def download_audio(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:

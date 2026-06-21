@@ -25,15 +25,8 @@ class BotHandlers:
         if audio is not None:
             loading_msg = await msg.answer("Скачиваю...")
             with TemporaryDirectory() as temp_dir:
-                cover_url = response.get("cover_url")
-
-                media = {"audio": audio}
-
-                if cover_url is not None:
-                    media["cover_url"] = cover_url
-
                 file_path, cover_path = await self.download_service.download_media(
-                    media,
+                    response,
                     Path(temp_dir),
                 )
 
@@ -50,7 +43,7 @@ class BotHandlers:
             loading_msg = await msg.answer("Скачиваю...")
             with TemporaryDirectory() as temp_dir:
                 file_path = await self.download_service.download_media(
-                    {"video": video},
+                    response,
                     Path(temp_dir),
                 )
 
@@ -132,11 +125,13 @@ class BotHandlers:
                         thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                     )
 
+                    return
+
                 await msg.answer_video(
                     video=FSInputFile(file_path),
                 )
 
-            return
+                return
         
         await msg.answer("Неизвестная кнопка")
         return

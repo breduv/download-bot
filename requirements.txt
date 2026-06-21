@@ -27,10 +27,15 @@ brotli==1.2.0
 certifi==2026.6.17
     # via
     #   aiogram
+    #   curl-cffi
     #   requests
     #   yt-dlp
+cffi==2.0.0
+    # via curl-cffi
 charset-normalizer==3.4.7
     # via requests
+curl-cffi==0.15.0
+    # via yt-dlp
 ffmpeg-python==0.2.0
     # via -r requirements.in
 frozenlist==1.8.0
@@ -45,6 +50,10 @@ idna==3.18
     #   yarl
 magic-filter==1.0.12
     # via aiogram
+markdown-it-py==4.2.0
+    # via rich
+mdurl==0.1.2
+    # via markdown-it-py
 multidict==6.7.1
     # via
     #   aiohttp
@@ -57,6 +66,8 @@ propcache==0.5.2
     # via
     #   aiohttp
     #   yarl
+pycparser==3.0
+    # via cffi
 pycryptodomex==3.23.0
     # via yt-dlp
 pydantic==2.13.4
@@ -67,6 +78,8 @@ pydantic-core==2.46.4
     # via pydantic
 pydantic-settings==2.14.2
     # via -r requirements.in
+pygments==2.20.0
+    # via rich
 python-dotenv==1.2.2
     # via pydantic-settings
 python-socks[asyncio]==2.8.1
@@ -77,6 +90,8 @@ requests==2.34.2
     # via
     #   spotipy
     #   yt-dlp
+rich==15.0.0
+    # via curl-cffi
 spotipy==2.26.0
     # via -r requirements.in
 typing-extensions==4.15.0
@@ -100,7 +115,7 @@ websockets==16.0
     # via yt-dlp
 yarl==1.24.2
     # via aiohttp
-yt-dlp[default]==2026.6.9
+yt-dlp[curl-cffi,default]==2026.6.9
     # via -r requirements.in
 yt-dlp-ejs==0.8.0
     # via
