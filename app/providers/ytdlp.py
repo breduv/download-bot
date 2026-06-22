@@ -234,7 +234,7 @@ class YtdlpProvider:
         
     def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
         banned_format_ids: set[str] = set()
-        max_attempts = 3
+        max_attempts = 10
 
         for attempt in range(1, max_attempts + 1):
             exclude = "".join(f"[format_id!={format_id}]" for format_id in banned_format_ids)
