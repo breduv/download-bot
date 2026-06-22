@@ -54,3 +54,15 @@ INSTAGRAM_HOSTS = {
     "www.instagram.com",
     "m.instagram.com",
 }
+
+VK_HOSTS = {
+    "vk.com",
+    "www.vk.com",
+    "m.vk.com",
+    "vk.ru",
+    "www.vk.ru",
+    "m.vk.ru",
+    "vkvideo.ru",
+    "www.vkvideo.ru",
+    "m.vkvideo.ru",
+}

@@ -7,6 +7,7 @@ from app.models.search import (
     PINTEREST_HOSTS,
     SPOTIFY_HOSTS,
     TIKTOK_HOSTS,
+    VK_HOSTS,
     YOUTUBE_HOSTS,
     YOUTUBE_MUSIC_HOSTS,
     InputKind,
@@ -54,7 +55,7 @@ class SearchService:
             return ParsedInput(InputKind.YOUTUBE, value)
         if host in YOUTUBE_MUSIC_HOSTS:
             return ParsedInput(InputKind.AUDIO, value)
-        if host in TIKTOK_HOSTS or host in PINTEREST_HOSTS or host in INSTAGRAM_HOSTS:
+        if (host in TIKTOK_HOSTS) or (host in PINTEREST_HOSTS) or (host in INSTAGRAM_HOSTS) or (host in VK_HOSTS and parsed.path.startswith(("/clip", "/clips"))):
             return ParsedInput(InputKind.VIDEO, value)
 
         return ParsedInput(InputKind.UNSUPPORTED_URL, value)
