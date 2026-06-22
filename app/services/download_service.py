@@ -2,6 +2,7 @@ from logging import getLogger
 from pathlib import Path
 
 from app.providers.cover import CoverProvider
+from app.providers.gallerydl import GallerydlProvider
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
 
@@ -10,12 +11,23 @@ logger = getLogger(__name__)
 
 
 class DownloadService:
-    def __init__(self, spotify_provider: SpotifyProvider, ytdlp_provider: YtdlpProvider, cover_provaider: CoverProvider) -> None:
+    def __init__(
+        self,
+        spotify_provider: SpotifyProvider,
+        ytdlp_provider: YtdlpProvider,
+        cover_provaider: CoverProvider,
+        gallerydl_provider: GallerydlProvider,
+    ) -> None:
         self.spotify_provider = spotify_provider
         self.ytdlp_provider = ytdlp_provider
         self.cover_provaider = cover_provaider
+        self.gallerydl_provider = gallerydl_provider
 
-    async def download_media(self, media: dict[str, str], output_dir: Path,) -> tuple[Path, Path | None]:
+    async def download_media(
+        self,
+        media: dict[str, str],
+        output_dir: Path,
+    ) -> tuple[Path, Path | None]:
         value = media.get("audio")
 
         if value is not None:
@@ -41,7 +53,7 @@ class DownloadService:
 
             logger.info("Audio download completed cover=%s", cover_path is not None)
             return audio_path, cover_path
-
+        
         logger.info("Video download started")
         video_path = await self.ytdlp_provider.download_video(
             url=media["video"],
@@ -49,6 +61,15 @@ class DownloadService:
         )
         logger.info("Video download completed")
         return video_path, None
+
+    async def download_photos(self, url: str, output_dir: Path) -> list[Path]:
+        logger.info("Gallery download started")
+        photo_paths = await self.gallerydl_provider.download_photos(
+            url=url,
+            output_dir=output_dir,
+        )
+        logger.info("Gallery download completed photos_count=%d", len(photo_paths))
+        return photo_paths
     
     async def download_on_spotify(self, track_id: str, output_dir: Path) -> tuple[Path, Path | None]:
         logger.info("Spotify selection download started track_id=%s", track_id)

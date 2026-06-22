@@ -86,6 +86,19 @@ class ProviderError(Exception):
             case ("unexpected_response", "yt-dlp", "get_video_formats", _):
                 return "Не удалось разобрать доступные форматы видео"
 
+            # gallery-dl: фото
+            case ("download_error", "gallery-dl", "download_photos", "unsupported_url"):
+                return "Не удалось обработать эту ссылку на фото TikTok"
+
+            case ("empty_response", "gallery-dl", "download_photos", _):
+                return "В публикации TikTok не нашлось доступных фотографий"
+
+            case ("media_too_large", "gallery-dl", "download_photos", _):
+                return "Одна из фотографий слишком большая для отправки"
+
+            case ("download_error", "gallery-dl", "download_photos", _):
+                return "Не удалось скачать фотографии из TikTok. Попробуй позже"
+
             # Обложки и метаданные
             case ("provider_timeout", "cover", "download_cover", _):
                 return "Сервис обложек не ответил вовремя. Попробуй позже"

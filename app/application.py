@@ -6,6 +6,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from app.bot.router import setup_router
 from app.core import Settings
 from app.providers.cover import CoverProvider
+from app.providers.gallerydl import GallerydlProvider
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
 from app.services.download_service import DownloadService
@@ -31,6 +32,7 @@ async def run_application(settings: Settings) -> None:
     spotify_provider = SpotifyProvider(settings)
     ytdlp_provider = YtdlpProvider(settings)
     cover_provaider = CoverProvider()
+    gallerydl_provider = GallerydlProvider(settings)
 
     search_service = SearchService(
         spotify_provider=spotify_provider,
@@ -39,7 +41,8 @@ async def run_application(settings: Settings) -> None:
     download_service = DownloadService(
         spotify_provider=spotify_provider,
         ytdlp_provider=ytdlp_provider,
-        cover_provaider=cover_provaider
+        cover_provaider=cover_provaider,
+        gallerydl_provider=gallerydl_provider,
     )
 
     router = setup_router(

@@ -44,6 +44,8 @@ frozenlist==1.8.0
     #   aiosignal
 future==1.0.0
     # via ffmpeg-python
+gallery-dl==1.32.4
+    # via -r requirements.in
 idna==3.18
     # via
     #   requests
@@ -88,6 +90,7 @@ redis==8.0.0
     # via spotipy
 requests==2.34.2
     # via
+    #   gallery-dl
     #   spotipy
     #   yt-dlp
 rich==15.0.0

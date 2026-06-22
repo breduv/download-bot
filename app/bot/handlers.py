@@ -2,7 +2,7 @@ from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from aiogram.types import CallbackQuery, FSInputFile, Message
+from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 
 from app.bot.keyboard import build_search_results_keyboard
 from app.errors.provider import ProviderError
@@ -69,6 +69,27 @@ class BotHandlers:
                     await self._delete_loading_message(loading_msg)
 
                 return
+            
+            if response.get("photo") is not None:
+                logger.info("Photo request resolved user_id=%s", msg.from_user.id)
+                loading_msg = await msg.answer("Скачиваю...")
+                try:
+                    with TemporaryDirectory() as temp_dir:
+                        photo_paths = await self.download_service.download_photos(
+                            response["photo"],
+                            Path(temp_dir),
+                        )
+
+                        await self._send_photos(msg, photo_paths)
+                        logger.info(
+                            "Gallery sent user_id=%s photos_count=%d",
+                            msg.from_user.id,
+                            len(photo_paths),
+                        )
+                finally:
+                    await self._delete_loading_message(loading_msg)
+
+                return
 
             keyboard = build_search_results_keyboard(response)
             text = "Выбери вариант:"
@@ -87,7 +108,7 @@ class BotHandlers:
 
             return
         except (ProviderError, ServiceError) as exc:
-            logger.warning("Failed to handle text message: %s", exc, exc_info=True)
+            self._log_handled_error("text", exc)
             await self._send_error(msg, exc.public_message)
         except Exception:
             logger.exception("Unexpected error while handling text message")
@@ -172,7 +193,7 @@ class BotHandlers:
                 service="bot",
             )
         except (ProviderError, ServiceError) as exc:
-            logger.warning("Failed to handle callback: %s", exc, exc_info=True)
+            self._log_handled_error("callback", exc)
             await self._send_callback_error(callback, exc.public_message)
         except Exception:
             logger.exception("Unexpected error while handling callback")
@@ -180,6 +201,40 @@ class BotHandlers:
                 callback,
                 "Произошла непредвиденная ошибка. Попробуй отправить запрос ещё раз.",
             )
+
+    @staticmethod
+    async def _send_photos(msg: Message, photo_paths: list[Path]) -> None:
+        max_group_size = 10
+
+        for start in range(0, len(photo_paths), max_group_size):
+            batch = photo_paths[start:start + max_group_size]
+            logger.debug("Sending photo batch photos_count=%d", len(batch))
+
+            if len(batch) == 1:
+                await msg.answer_photo(photo=FSInputFile(batch[0]))
+                continue
+
+            media = [
+                InputMediaPhoto(media=FSInputFile(photo_path))
+                for photo_path in batch
+            ]
+            await msg.answer_media_group(media=media) # pyright: ignore[reportArgumentType]
+
+    @staticmethod
+    def _log_handled_error(
+        context: str,
+        exc: ProviderError | ServiceError,
+    ) -> None:
+        component = exc.provider if isinstance(exc, ProviderError) else exc.service
+        logger.warning(
+            "Handled request error context=%s code=%s component=%s operation=%s details=%s",
+            context,
+            exc.code,
+            component,
+            exc.operation,
+            exc.details,
+            exc_info=True,
+        )
 
     @staticmethod
     async def _delete_loading_message(loading_msg: Message) -> None:

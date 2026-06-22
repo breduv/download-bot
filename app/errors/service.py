@@ -25,6 +25,12 @@ class ServiceError(Exception):
             case ("unsupported_url", "search"):
                 return "Эта ссылка пока не поддерживается"
 
+            case ("url_resolution_error", "search"):
+                return (
+                    "Не удалось раскрыть короткую ссылку TikTok. "
+                    "Пришли полную ссылку на публикацию"
+                )
+
             case ("invalid_input_kind", "search"):
                 return "Не удалось понять, что делать с этим запросом"
 
@@ -41,6 +47,10 @@ class EmptyQueryError(ServiceError):
 
 class UnsupportedUrlError(ServiceError):
     code: ClassVar[str] = "unsupported_url"
+
+
+class UrlResolutionError(ServiceError):
+    code: ClassVar[str] = "url_resolution_error"
 
 
 class InvalidInputKindError(ServiceError):

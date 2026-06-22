@@ -1,12 +1,20 @@
 from logging import getLogger
 from urllib.parse import urlparse
 
-from app.errors.service import EmptyQueryError, InvalidInputKindError, UnsupportedUrlError
+import aiohttp
+
+from app.errors.service import (
+    EmptyQueryError,
+    InvalidInputKindError,
+    UnsupportedUrlError,
+    UrlResolutionError,
+)
 from app.models.search import (
     INSTAGRAM_HOSTS,
     PINTEREST_HOSTS,
     SPOTIFY_HOSTS,
     TIKTOK_HOSTS,
+    TIKTOK_SHORT_HOSTS,
     VK_HOSTS,
     YOUTUBE_HOSTS,
     YOUTUBE_MUSIC_HOSTS,
@@ -25,7 +33,7 @@ class SearchService:
         self.spotify_provider = spotify_provider
         self.ytdlp_provider = ytdlp_provider
 
-    def _parse_input(self, text: str) -> ParsedInput:
+    async def _parse_input(self, text: str) -> ParsedInput:
         value = text.strip()
 
         if not value:
@@ -49,19 +57,60 @@ class SearchService:
 
         if host in SPOTIFY_HOSTS:
             return ParsedInput(InputKind.SPOTIFY, value)
+
         if host in YOUTUBE_HOSTS:
             if parsed.path.startswith("/shorts/"):
                 return ParsedInput(InputKind.VIDEO, value)
+
             return ParsedInput(InputKind.YOUTUBE, value)
+
         if host in YOUTUBE_MUSIC_HOSTS:
             return ParsedInput(InputKind.AUDIO, value)
-        if (host in TIKTOK_HOSTS) or (host in PINTEREST_HOSTS) or (host in INSTAGRAM_HOSTS) or (host in VK_HOSTS and parsed.path.startswith(("/clip", "/clips"))):
+
+        if host in TIKTOK_HOSTS:
+            resolved_value = value
+            is_short_url = host in TIKTOK_SHORT_HOSTS or parsed.path.startswith("/t/")
+
+            if is_short_url:
+                resolved_value = await self._resolve_tiktok_short_url(value)
+                parsed = urlparse(resolved_value)
+
+                if parsed.hostname not in TIKTOK_HOSTS:
+                    raise UrlResolutionError(
+                        "TikTok short URL resolved to an unexpected host",
+                        service="search",
+                        operation="resolve_tiktok_url",
+                        details="unexpected_host",
+                    )
+
+            if "/photo/" in parsed.path:
+                if parsed.hostname == "m.tiktok.com":
+                    parsed = parsed._replace(netloc="www.tiktok.com")
+                    resolved_value = parsed.geturl()
+
+                return ParsedInput(InputKind.PHOTO, resolved_value)
+
+            if "/video/" in parsed.path:
+                return ParsedInput(InputKind.VIDEO, resolved_value)
+
+            raise UnsupportedUrlError(
+                f"unsupported TikTok URL path: {parsed.path}",
+                service="search",
+                operation="parse_input",
+                details="tiktok_path",
+            )
+
+        if (
+            host in PINTEREST_HOSTS
+            or host in INSTAGRAM_HOSTS
+            or host in VK_HOSTS and parsed.path.startswith(("/clip", "/clips"))
+        ):
             return ParsedInput(InputKind.VIDEO, value)
 
         return ParsedInput(InputKind.UNSUPPORTED_URL, value)
     
     async def search(self, text: str) -> dict[str, str]:
-        parsed_input = self._parse_input(text)
+        parsed_input = await self._parse_input(text)
         logger.debug("Search input parsed source=%s", parsed_input.source)
 
         if parsed_input.source == InputKind.QUERY:
@@ -110,6 +159,11 @@ class SearchService:
                 "video": parsed_input.query
             }
         
+        if parsed_input.source == InputKind.PHOTO:
+            return {
+                "photo": parsed_input.query
+            }
+
         if parsed_input.source == InputKind.UNSUPPORTED_URL:
             raise UnsupportedUrlError(
                 f"unsupported url: {parsed_input.query}",
@@ -120,3 +174,48 @@ class SearchService:
             f"invalid input kind: {parsed_input.source}",
             service="search",
         )
+
+    async def _resolve_tiktok_short_url(self, url: str) -> str:
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            )
+        }
+
+        timeout = aiohttp.ClientTimeout(total=10)
+        host = urlparse(url).hostname
+        logger.debug("TikTok URL resolution started host=%s", host)
+
+        try:
+            async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
+                async with session.get(url, allow_redirects=True) as response:
+                    response.raise_for_status()
+                    resolved_url = str(response.url)
+                    logger.debug(
+                        "TikTok URL resolution completed status=%d resolved_host=%s",
+                        response.status,
+                        response.url.host,
+                    )
+                    return resolved_url
+        except TimeoutError as exc:
+            logger.warning("TikTok URL resolution timed out host=%s", host)
+            raise UrlResolutionError(
+                "TikTok short URL resolution timed out",
+                service="search",
+                operation="resolve_tiktok_url",
+                details="timeout",
+            ) from exc
+        except aiohttp.ClientError as exc:
+            logger.warning(
+                "TikTok URL resolution failed host=%s error=%s",
+                host,
+                exc.__class__.__name__,
+            )
+            raise UrlResolutionError(
+                "TikTok short URL resolution request failed",
+                service="search",
+                operation="resolve_tiktok_url",
+                details=exc.__class__.__name__,
+            ) from exc

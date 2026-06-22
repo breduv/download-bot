@@ -8,7 +8,9 @@ class InputKind(StrEnum):
     YOUTUBE = "youtube"
     AUDIO = "audio"
     VIDEO = "video"
+    PHOTO = "photo"
     UNSUPPORTED_URL = "unsupported_url"
+
 
 @dataclass(frozen=True)
 class ParsedInput:
@@ -45,6 +47,11 @@ TIKTOK_HOSTS = {
     "tiktok.com",
     "www.tiktok.com",
     "m.tiktok.com",
+    "vm.tiktok.com",
+    "vt.tiktok.com",
+}
+
+TIKTOK_SHORT_HOSTS = {
     "vm.tiktok.com",
     "vt.tiktok.com",
 }
