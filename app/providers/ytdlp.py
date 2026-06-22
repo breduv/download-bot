@@ -1,6 +1,8 @@
 import asyncio
+import json
 from logging import getLogger
 from pathlib import Path
+import subprocess
 from typing import Any, cast
 
 from yt_dlp import YoutubeDL
@@ -169,54 +171,162 @@ class YtdlpProvider:
             query_or_url,
             output_dir,
         )
+    
+    @staticmethod
+    def _probe_has_video_and_audio(file_path: Path) -> tuple[bool, bool]:
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v", "error",
+                    "-show_entries", "stream=codec_type",
+                    "-of", "json",
+                    str(file_path),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except FileNotFoundError:
+            raise DownloadError(
+                "ffprobe was not found",
+                provider="ffprobe",
+                operation="probe_media",
+            )
+
+        if result.returncode != 0:
+            return False, False
+
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return False, False
+        streams = data.get("streams", [])
+
+        has_video = any(stream.get("codec_type") == "video" for stream in streams)
+        has_audio = any(stream.get("codec_type") == "audio" for stream in streams)
+
+        return has_video, has_audio
+    
+    def _get_used_format_ids(self, info: dict[str, Any]) -> list[str]:
+        requested_formats = info.get("requested_formats")
+
+        if isinstance(requested_formats, list):
+            result: list[str] = []
+
+            for item in requested_formats:
+                if not isinstance(item, dict):
+                    continue
+
+                format_id = item.get("format_id")
+
+                if isinstance(format_id, str):
+                    result.append(format_id)
+
+            return result
+
+        format_id = info.get("format_id")
+
+        if isinstance(format_id, str):
+            return [part for part in format_id.split("+") if part]
+
+        return []
         
     def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
-        if format_id == None:
-            format = "bestvideo*+bestaudio/best[vcodec!=none][acodec!=none]"
-        else:
-            format = f"{format_id}+bestaudio/{format_id}[vcodec!=none][acodec!=none]"
-        options = self.base_options | {
-            'format': format,
-            "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
-            "merge_output_format": "mp4",
-            "recodevideo": "mp4",
-        }
+        banned_format_ids: set[str] = set()
+        max_attempts = 3
 
-        info = self._download(url, options, operation="download_video")
+        for attempt in range(1, max_attempts + 1):
+            exclude = "".join(f"[format_id!={format_id}]" for format_id in banned_format_ids)
 
-        media_id = info.get("id")
-        if media_id is None:
-            raise UnexpectedResponseError(
-                "yt-dlp returned info without media id",
-                provider="yt-dlp",
-                operation="download_video",
+            if format_id is None:
+                format_selector = f"bestvideo*{exclude}+bestaudio{exclude}/best[vcodec!=none][acodec!=none]{exclude}"
+            else:
+                format_selector = f"{format_id}+bestaudio/{format_id}[vcodec!=none][acodec!=none]"
+
+            options = self.base_options | {
+                'format': format_selector,
+                "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
+                "merge_output_format": "mp4",
+                "recodevideo": "mp4",
+            }
+
+            info = self._download(url, options, operation="download_video")
+
+            media_id = info.get("id")
+            if media_id is None:
+                raise UnexpectedResponseError(
+                    "yt-dlp returned info without media id",
+                    provider="yt-dlp",
+                    operation="download_video",
+                )
+
+            file_path = output_dir / (str(media_id)+".mp4")
+            if not file_path.is_file():
+                raise DownloadError(
+                    "downloaded file was not found",
+                    provider="yt-dlp",
+                    operation="download_video",
+                )
+            
+            has_video, has_audio = self._probe_has_video_and_audio(file_path)
+
+            if has_video and has_audio:
+                filesize = file_path.stat().st_size
+                
+                if filesize > self.max_upload_size_bytes:
+                    raise MediaTooLargeError(
+                        "downloaded media file is too large",
+                        provider="yt-dlp",
+                        operation="download_video",
+                        details="selected_format" if format_id is not None else "",
+                    )
+
+                logger.info(
+                    "Video file prepared media_id=%s size_bytes=%d format_id=%s",
+                    media_id,
+                    filesize,
+                    format_id or "auto",
+                )
+                return file_path
+            
+            used_format_ids = self._get_used_format_ids(info)
+
+            if not used_format_ids:
+                raise DownloadError(
+                    "downloaded invalid media and yt-dlp did not report used format ids",
+                    provider="yt-dlp",
+                    operation="download_video",
+                    details="missing_used_format_ids",
+                )
+
+            banned_format_ids.update(used_format_ids)
+
+            logger.warning(
+                "Downloaded invalid media, retrying media_id=%s has_video=%s has_audio=%s used_formats=%s attempt=%d",
+                media_id,
+                has_video,
+                has_audio,
+                used_format_ids,
+                attempt,
             )
 
-        file_path = output_dir / (media_id+".mp4")
-        if not file_path.is_file():
-            raise DownloadError(
-                "downloaded file was not found",
-                provider="yt-dlp",
-                operation="download_video",
-            )
+            file_path.unlink(missing_ok=True)
 
-        filesize = file_path.stat().st_size
-        
-        if filesize > self.max_upload_size_bytes:
-            raise MediaTooLargeError(
-                "downloaded media file is too large",
-                provider="yt-dlp",
-                operation="download_video",
-                details="selected_format" if format_id is not None else "",
-            )
+            if format_id is not None:
+                raise DownloadError(
+                    "selected video format produced invalid media",
+                    provider="yt-dlp",
+                    operation="download_video",
+                    details="selected_format_invalid",
+                )
 
-        logger.info(
-            "Video file prepared media_id=%s size_bytes=%d format_id=%s",
-            media_id,
-            filesize,
-            format_id or "auto",
+        raise DownloadError(
+            "failed to download valid video with audio",
+            provider="yt-dlp",
+            operation="download_video",
+            details="no_valid_video_audio_streams",
         )
-        return file_path
     
     async def download_video(self, url: str, output_dir: Path, format_id: str | None = None) -> Path:
         return await asyncio.to_thread(
