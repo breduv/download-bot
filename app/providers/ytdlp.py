@@ -172,11 +172,11 @@ class YtdlpProvider:
         
     def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
         if format_id == None:
-            format = "bestvideo*"
+            format = "bestvideo*+bestaudio/best[vcodec!=none][acodec!=none]"
         else:
-            format = format_id
+            format = f"{format_id}+bestaudio/{format_id}[vcodec!=none][acodec!=none]"
         options = self.base_options | {
-            'format': f'{format}+bestaudio/best',
+            'format': format,
             "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
             "merge_output_format": "mp4",
             "recodevideo": "mp4",
@@ -218,7 +218,7 @@ class YtdlpProvider:
         )
         return file_path
     
-    async def download_video(self, url: str, output_dir: Path, format_id: str|None = None) -> Path:
+    async def download_video(self, url: str, output_dir: Path, format_id: str | None = None) -> Path:
         return await asyncio.to_thread(
             self._download_video_sync,
             url,
