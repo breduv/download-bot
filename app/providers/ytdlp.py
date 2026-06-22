@@ -234,13 +234,19 @@ class YtdlpProvider:
         
     def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
         banned_format_ids: set[str] = set()
-        max_attempts = 10
+        max_attempts = 3
 
         for attempt in range(1, max_attempts + 1):
             exclude = "".join(f"[format_id!={format_id}]" for format_id in banned_format_ids)
 
-            if format_id is None:
+            if format_id is None and attempt == 1:
                 format_selector = f"bestvideo*{exclude}+bestaudio{exclude}/best[vcodec!=none][acodec!=none]{exclude}"
+            elif format_id is None:
+                format_selector = (
+                    f"best[vcodec^=h264][acodec!=none]{exclude}/"
+                    f"best[vcodec^=avc1][acodec!=none]{exclude}/"
+                    f"best[vcodec!=none][acodec!=none]{exclude}"
+                )
             else:
                 format_selector = f"{format_id}+bestaudio/{format_id}[vcodec!=none][acodec!=none]"
 
