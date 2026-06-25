@@ -55,8 +55,6 @@ async def run_application(settings: Settings) -> None:
         # await bot.set_my_commands(...)
         logger.info("Starting Telegram bot")
         await dispatcher.start_polling(bot)
-    except Exception:
-        raise RuntimeError
     finally:
         logger.info("Stopping Telegram bot")
         await bot.session.close()
