@@ -7,20 +7,32 @@ from mutagen import MutagenError # pyright: ignore[reportPrivateImportUsage]
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPrivateImportUsage]
 
-from app.errors.provider import DownloadError, ProviderTimeoutError, UnexpectedResponseError
+from app.core.config import Settings
+from app.errors.provider import (
+    DownloadError,
+    ProviderTimeoutError,
+    UnexpectedResponseError,
+)
 
 
 logger = getLogger(__name__)
 
 
 class CoverProvider:
+    def __init__(self, settings: Settings) -> None:
+        self.proxy = (
+            settings.media_proxy.get_secret_value()
+            if settings.media_proxy is not None
+            else None
+        )
+
     async def download_cover(self, url: str, output_dir: Path, filename: str = "cover.jpg") -> Path:
         cover_path = output_dir / filename
-        logger.debug("Cover download started filename=%s", filename)
+        logger.debug("Cover download started filename=%s proxy=%s", filename, self.proxy is not None)
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
+                async with session.get(url, proxy=self.proxy) as response:
                     if response.status != 200:
                         raise DownloadError(
                             f"cover request returned status {response.status}",

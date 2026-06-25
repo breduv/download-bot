@@ -31,7 +31,7 @@ async def run_application(settings: Settings) -> None:
 
     spotify_provider = SpotifyProvider(settings)
     ytdlp_provider = YtdlpProvider(settings)
-    cover_provaider = CoverProvider()
+    cover_provaider = CoverProvider(settings)
     gallerydl_provider = GallerydlProvider(settings)
 
     search_service = SearchService(
