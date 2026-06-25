@@ -5,8 +5,7 @@ from tempfile import TemporaryDirectory
 from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
 
 from app.bot.keyboard import build_search_results_keyboard
-from app.errors.provider import ProviderError
-from app.errors.service import InvalidCallbackDataError, ServiceError
+from app.errors.base import AppError, InvalidCallbackDataError
 from app.services.download_service import DownloadService
 from app.services.search_service import SearchService
 
@@ -107,22 +106,30 @@ class BotHandlers:
             )
 
             return
-        except (ProviderError, ServiceError) as exc:
+        except AppError as exc:
             self._log_handled_error("text", exc)
             await self._send_error(msg, exc.public_message)
         except Exception:
-            logger.exception("Unexpected error while handling text message")
+            logger.exception("Unhandled request error context=text")
             await self._send_error(msg, "Произошла непредвиденная ошибка. Попробуй ещё раз позже")
 
     async def handle_callback(self, callback: CallbackQuery) -> None:
         try:
             if callback.data is None:
-                await callback.answer("Пустая кнопка", show_alert=True)
-                return
+                raise InvalidCallbackDataError(
+                    "Callback data is empty",
+                    component="bot",
+                    operation_name="handle_callback",
+                    public_message="Пустая кнопка",
+                )
 
             if not isinstance(callback.message, Message):
-                await callback.answer("Не удалось найти сообщение", show_alert=True)
-                return
+                raise InvalidCallbackDataError(
+                    "Callback message is missing",
+                    component="bot",
+                    operation_name="handle_callback",
+                    public_message="Не удалось найти сообщение",
+                )
 
             msg = callback.message
             data = callback.data
@@ -138,6 +145,12 @@ class BotHandlers:
 
             if data.startswith("sp:"):
                 track_id = data.removeprefix("sp:")
+                if not track_id:
+                    raise InvalidCallbackDataError(
+                        "Spotify callback track id is empty",
+                        component="bot",
+                        operation_name="handle_callback",
+                    )
 
                 loading_msg = await msg.answer("Скачиваю...")
                 try:
@@ -158,7 +171,15 @@ class BotHandlers:
                 return
 
             if data.startswith("yt:"):
-                _, video_id, format_id = data.split(":", maxsplit=2)
+                parts = data.split(":", maxsplit=2)
+                if len(parts) != 3 or not parts[1] or not parts[2]:
+                    raise InvalidCallbackDataError(
+                        f"Malformed YouTube callback data: {data}",
+                        component="bot",
+                        operation_name="handle_callback",
+                    )
+
+                _, video_id, format_id = parts
                 video_url = f"https://www.youtube.com/watch?v={video_id}"
 
                 loading_msg = await msg.answer("Скачиваю...")
@@ -190,13 +211,14 @@ class BotHandlers:
 
             raise InvalidCallbackDataError(
                 f"Unknown callback data: {data}",
-                service="bot",
+                component="bot",
+                operation_name="handle_callback",
             )
-        except (ProviderError, ServiceError) as exc:
+        except AppError as exc:
             self._log_handled_error("callback", exc)
             await self._send_callback_error(callback, exc.public_message)
         except Exception:
-            logger.exception("Unexpected error while handling callback")
+            logger.exception("Unhandled request error context=callback")
             await self._send_callback_error(
                 callback,
                 "Произошла непредвиденная ошибка. Попробуй отправить запрос ещё раз.",
@@ -223,15 +245,14 @@ class BotHandlers:
     @staticmethod
     def _log_handled_error(
         context: str,
-        exc: ProviderError | ServiceError,
+        exc: AppError,
     ) -> None:
-        component = exc.provider if isinstance(exc, ProviderError) else exc.service
         logger.warning(
-            "Handled request error context=%s code=%s component=%s operation=%s details=%s",
+            "Handled request error context=%s code=%s component=%s operation_name=%s details=%s",
             context,
             exc.code,
-            component,
-            exc.operation,
+            exc.component,
+            exc.operation_name,
             exc.details,
             exc_info=True,
         )

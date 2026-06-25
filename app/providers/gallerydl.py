@@ -6,7 +6,7 @@ from threading import Lock
 from gallery_dl import config, exception, job
 
 from app.core.config import Settings
-from app.errors.provider import (
+from app.errors.base import (
     DownloadError,
     EmptyResponseError,
     MediaTooLargeError,
@@ -51,31 +51,34 @@ class GallerydlProvider:
         except exception.NoExtractorError as exc:
             raise DownloadError(
                 "gallery-dl has no extractor for URL",
-                provider="gallery-dl",
-                operation="download_photos",
-                details="unsupported_url",
+                component="gallery-dl",
+                operation_name="download_photos",
+                details=str(exc),
+                public_message="Не удалось обработать эту ссылку на фото TikTok",
             ) from exc
         except exception.GalleryDLException as exc:
             raise DownloadError(
                 "gallery-dl failed to initialize download",
-                provider="gallery-dl",
-                operation="download_photos",
-                details="initialization",
+                component="gallery-dl",
+                operation_name="download_photos",
+                details=str(exc),
+                public_message="Не удалось скачать фотографии из TikTok. Попробуй позже",
             ) from exc
         except OSError as exc:
             raise DownloadError(
                 "gallery-dl failed to access output directory",
-                provider="gallery-dl",
-                operation="download_photos",
-                details="filesystem",
+                component="gallery-dl",
+                operation_name="download_photos",
+                details=str(exc),
+                public_message="Не удалось скачать фотографии из TikTok. Попробуй позже",
             ) from exc
 
         if status:
             raise DownloadError(
                 f"gallery-dl download failed with status {status}",
-                provider="gallery-dl",
-                operation="download_photos",
-                details=f"status_{status}",
+                component="gallery-dl",
+                operation_name="download_photos",
+                public_message="Не удалось скачать фотографии из TikTok. Попробуй позже",
             )
 
         try:
@@ -87,17 +90,18 @@ class GallerydlProvider:
         except OSError as exc:
             raise DownloadError(
                 "failed to locate downloaded photo",
-                provider="gallery-dl",
-                operation="download_photos",
-                details="filesystem",
+                component="gallery-dl",
+                operation_name="download_photos",
+                details=str(exc),
+                public_message="Не удалось скачать фотографии из TikTok. Попробуй позже",
             ) from exc
 
         if not files:
             raise EmptyResponseError(
                 "gallery-dl did not download a photo",
-                provider="gallery-dl",
-                operation="download_photos",
-                details="files",
+                component="gallery-dl",
+                operation_name="download_photos",
+                public_message="В публикации TikTok не нашлось доступных фотографий",
             )
 
         total_size_bytes = 0
@@ -108,25 +112,26 @@ class GallerydlProvider:
             except OSError as exc:
                 raise DownloadError(
                     "failed to inspect downloaded photo",
-                    provider="gallery-dl",
-                    operation="download_photos",
-                    details="filesystem",
+                    component="gallery-dl",
+                    operation_name="download_photos",
+                    details=str(exc),
+                    public_message="Не удалось скачать фотографии из TikTok. Попробуй позже",
                 ) from exc
 
             if size_bytes == 0:
                 raise EmptyResponseError(
                     "gallery-dl downloaded an empty photo",
-                    provider="gallery-dl",
-                    operation="download_photos",
-                    details="empty_file",
+                    component="gallery-dl",
+                    operation_name="download_photos",
+                    public_message="В публикации TikTok не нашлось доступных фотографий",
                 )
 
             if size_bytes > self.max_upload_size_bytes:
                 raise MediaTooLargeError(
                     "downloaded photo is too large",
-                    provider="gallery-dl",
-                    operation="download_photos",
-                    details="upload_limit",
+                    component="gallery-dl",
+                    operation_name="download_photos",
+                    public_message="Одна из фотографий слишком большая для отправки",
                 )
 
             total_size_bytes += size_bytes

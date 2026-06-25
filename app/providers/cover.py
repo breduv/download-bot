@@ -8,7 +8,7 @@ from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPrivateImportUsage]
 
 from app.core.config import Settings
-from app.errors.provider import (
+from app.errors.base import (
     DownloadError,
     ProviderTimeoutError,
     UnexpectedResponseError,
@@ -28,16 +28,18 @@ class CoverProvider:
 
     async def download_cover(self, url: str, output_dir: Path, filename: str = "cover.jpg") -> Path:
         cover_path = output_dir / filename
+        timeout = aiohttp.ClientTimeout(total=10)
         logger.debug("Cover download started filename=%s proxy=%s", filename, self.proxy is not None)
 
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(url, proxy=self.proxy) as response:
                     if response.status != 200:
                         raise DownloadError(
                             f"cover request returned status {response.status}",
-                            provider="cover",
-                            operation="download_cover",
+                            component="cover",
+                            operation_name="download_cover",
+                            public_message="Не удалось скачать обложку трека. Попробуй позже",
                         )
 
                     content = await response.read()
@@ -45,8 +47,9 @@ class CoverProvider:
             if not content:
                 raise DownloadError(
                     "cover response is empty",
-                    provider="cover",
-                    operation="download_cover",
+                    component="cover",
+                    operation_name="download_cover",
+                    public_message="Не удалось скачать обложку трека. Попробуй позже",
                 )
 
             cover_path.write_bytes(content)
@@ -54,25 +57,30 @@ class CoverProvider:
         except DownloadError:
             raise
 
-        except aiohttp.ClientError as exc:
-            raise DownloadError(
-                "cover download request failed",
-                provider="cover",
-                operation="download_cover",
-            ) from exc
-
         except TimeoutError as exc:
             raise ProviderTimeoutError(
                 "cover download timed out",
-                provider="cover",
-                operation="download_cover",
+                component="cover",
+                operation_name="download_cover",
+                public_message="Сервис обложек не ответил вовремя. Попробуй позже",
+            ) from exc
+
+        except aiohttp.ClientError as exc:
+            raise DownloadError(
+                "cover download request failed",
+                component="cover",
+                operation_name="download_cover",
+                details=str(exc),
+                public_message="Не удалось скачать обложку трека. Попробуй позже",
             ) from exc
 
         except OSError as exc:
             raise DownloadError(
                 "failed to save cover",
-                provider="cover",
-                operation="download_cover",
+                component="cover",
+                operation_name="download_cover",
+                details=str(exc),
+                public_message="Не удалось скачать обложку трека. Попробуй позже",
             ) from exc
 
         logger.info("Cover downloaded size_bytes=%d", len(content))
@@ -102,24 +110,30 @@ class CoverProvider:
         except (MutagenError, OSError) as exc:
             raise DownloadError(
                 "failed to embed cover into mp3",
-                provider="cover",
-                operation="set_mp3_cover",
+                component="cover",
+                operation_name="set_mp3_cover",
+                details=str(exc),
+                public_message="Не удалось добавить обложку к аудиофайлу",
             ) from exc
 
     def _detect_mime(self, path: Path) -> str:
-        match path.suffix.lower():
-            case ".jpg" | ".jpeg":
-                return "image/jpeg"
-            case ".png":
-                return "image/png"
-            case ".webp":
-                return "image/webp"
-            case _:
-                raise UnexpectedResponseError(
-                    f"unsupported cover image extension: {path.suffix}",
-                    provider="cover",
-                    operation="set_mp3_cover",
-                )
+        mime_by_suffix = {
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".webp": "image/webp",
+        }
+
+        mime = mime_by_suffix.get(path.suffix.lower())
+        if mime is not None:
+            return mime
+
+        raise UnexpectedResponseError(
+            f"unsupported cover image extension: {path.suffix}",
+            component="cover",
+            operation_name="set_mp3_cover",
+            public_message="Формат обложки не поддерживается",
+        )
             
     async def set_mp3_cover(self, mp3_path: Path, cover_path: Path) -> None:
         await asyncio.to_thread(
@@ -144,8 +158,10 @@ class CoverProvider:
         except (MutagenError, OSError) as exc:
             raise DownloadError(
                 "failed to set mp3 metadata",
-                provider="cover",
-                operation="set_mp3_metadata",
+                component="cover",
+                operation_name="set_mp3_metadata",
+                details=str(exc),
+                public_message="Не удалось добавить данные о треке в аудиофайл",
             ) from exc
 
     async def set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:

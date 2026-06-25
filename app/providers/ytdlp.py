@@ -9,7 +9,7 @@ from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError as YtdlpDownloadError
 
 from app.core.config import Settings
-from app.errors.provider import DownloadError, EmptyResponseError, MediaTooLargeError, UnexpectedResponseError
+from app.errors.base import DownloadError, EmptyResponseError, MediaTooLargeError, UnexpectedResponseError
 from app.models.media import AvailableVideoFormat
 
 
@@ -30,8 +30,29 @@ class YtdlpProvider:
         self.max_upload_size_bytes = settings.max_upload_size_mb * 1024 * 1024
 
     def _download(self, target: str, options: dict[str, Any], operation: str) -> dict[str, Any]:
+        public_messages = {
+            "download_audio": {
+                "empty_response": (
+                    "Не удалось получить информацию об аудио. "
+                    "Проверь ссылку или запрос"
+                ),
+                "download_error": "Не удалось скачать аудио. Попробуй другую ссылку или запрос",
+                "unexpected_response": (
+                    "Не удалось обработать данные аудио. "
+                    "Попробуй другую ссылку или запрос"
+                ),
+                "empty_entries": "По этому запросу не удалось найти аудио",
+            },
+            "download_video": {
+                "empty_response": "Не удалось получить информацию о видео. Проверь ссылку",
+                "download_error": "Не удалось скачать видео. Проверь ссылку или попробуй позже",
+                "unexpected_response": "Не удалось обработать данные видео. Попробуй другую ссылку",
+                "empty_entries": "Не удалось получить информацию о видео. Проверь ссылку",
+            },
+        }[operation]
+
         logger.debug(
-            "yt-dlp extraction started operation=%s target_type=%s",
+            "yt-dlp extraction started operation_name=%s target_type=%s",
             operation,
             "url" if target.startswith(("http://", "https://")) else "search",
         )
@@ -42,8 +63,9 @@ class YtdlpProvider:
                 if raw_info is None:
                     raise EmptyResponseError(
                         "yt-dlp returned empty response",
-                        provider="yt-dlp",
-                        operation=operation,
+                        component="yt-dlp",
+                        operation_name=operation,
+                        public_message=public_messages["empty_response"],
                     )
                     
                 info = ydl.sanitize_info(raw_info)
@@ -51,36 +73,40 @@ class YtdlpProvider:
         except YtdlpDownloadError as exc:
             raise DownloadError(
                 "yt-dlp failed to download target",
-                provider="yt-dlp",
-                operation=operation,
+                component="yt-dlp",
+                operation_name=operation,
+                details=str(exc),
+                public_message=public_messages["download_error"],
             ) from exc
 
         if not isinstance(info, dict):
             raise UnexpectedResponseError(
                 f"yt-dlp returned unexpected response type: {type(info).__name__}",
-                provider="yt-dlp",
-                operation=operation,
+                component="yt-dlp",
+                operation_name=operation,
+                public_message=public_messages["unexpected_response"],
             )
         
         entries = info.get("entries")
 
         if entries is None:
-            logger.debug("yt-dlp extraction completed operation=%s", operation)
+            logger.debug("yt-dlp extraction completed operation_name=%s", operation)
             return cast(dict[str, Any], info)
 
         if not isinstance(entries, list):
             raise UnexpectedResponseError(
                 "yt-dlp returned invalid entries",
-                provider="yt-dlp",
-                operation=operation,
+                component="yt-dlp",
+                operation_name=operation,
+                public_message=public_messages["unexpected_response"],
             )
 
         if len(entries) == 0:
             raise EmptyResponseError(
                 "yt-dlp returned empty entries",
-                provider="yt-dlp",
-                operation=operation,
-                details="entries",
+                component="yt-dlp",
+                operation_name=operation,
+                public_message=public_messages["empty_entries"],
             )
 
         entry = entries[0]
@@ -88,11 +114,12 @@ class YtdlpProvider:
         if not isinstance(entry, dict):
             raise UnexpectedResponseError(
                 "yt-dlp returned invalid entry",
-                provider="yt-dlp",
-                operation=operation,
+                component="yt-dlp",
+                operation_name=operation,
+                public_message=public_messages["unexpected_response"],
             )
 
-        logger.debug("yt-dlp extraction completed operation=%s", operation)
+        logger.debug("yt-dlp extraction completed operation_name=%s", operation)
         return cast(dict[str, Any], entry)
     
     def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
@@ -127,16 +154,21 @@ class YtdlpProvider:
         if media_id is None:
             raise UnexpectedResponseError(
                 "yt-dlp returned info without media id",
-                provider="yt-dlp",
-                operation="download_audio",
+                component="yt-dlp",
+                operation_name="download_audio",
+                public_message=(
+                    "Не удалось обработать данные аудио. "
+                    "Попробуй другую ссылку или запрос"
+                ),
             )
 
         file_path = output_dir / (media_id+".mp3")
         if not file_path.is_file():
             raise DownloadError(
                 "downloaded file was not found",
-                provider="yt-dlp",
-                operation="download_audio",
+                component="yt-dlp",
+                operation_name="download_audio",
+                public_message="Не удалось скачать аудио. Попробуй другую ссылку или запрос",
             )
 
         filesize = file_path.stat().st_size
@@ -144,8 +176,9 @@ class YtdlpProvider:
         if filesize > self.max_upload_size_bytes:
             raise MediaTooLargeError(
                 "downloaded media file is too large",
-                provider="yt-dlp",
-                operation="download_audio",
+                component="yt-dlp",
+                operation_name="download_audio",
+                public_message="Аудиофайл слишком большой для отправки. Попробуй другой трек",
             )
         
         cover_path = None
@@ -187,12 +220,14 @@ class YtdlpProvider:
                 text=True,
                 check=False,
             )
-        except FileNotFoundError:
+        except FileNotFoundError as exc:
             raise DownloadError(
                 "ffprobe was not found",
-                provider="ffprobe",
-                operation="probe_media",
-            )
+                component="ffprobe",
+                operation_name="probe_media",
+                details=str(exc),
+                public_message="Не удалось проверить скачанное видео. Попробуй позже",
+            ) from exc
 
         if result.returncode != 0:
             return False, False
@@ -263,16 +298,18 @@ class YtdlpProvider:
             if media_id is None:
                 raise UnexpectedResponseError(
                     "yt-dlp returned info without media id",
-                    provider="yt-dlp",
-                    operation="download_video",
+                    component="yt-dlp",
+                    operation_name="download_video",
+                    public_message="Не удалось обработать данные видео. Попробуй другую ссылку",
                 )
 
             file_path = output_dir / (str(media_id)+".mp4")
             if not file_path.is_file():
                 raise DownloadError(
                     "downloaded file was not found",
-                    provider="yt-dlp",
-                    operation="download_video",
+                    component="yt-dlp",
+                    operation_name="download_video",
+                    public_message="Не удалось скачать видео. Проверь ссылку или попробуй позже",
                 )
             
             has_video, has_audio = self._probe_has_video_and_audio(file_path)
@@ -283,9 +320,13 @@ class YtdlpProvider:
                 if filesize > self.max_upload_size_bytes:
                     raise MediaTooLargeError(
                         "downloaded media file is too large",
-                        provider="yt-dlp",
-                        operation="download_video",
-                        details="selected_format" if format_id is not None else "",
+                        component="yt-dlp",
+                        operation_name="download_video",
+                        public_message=(
+                            "Видеофайл слишком большой для отправки. Выбери более низкое качество"
+                            if format_id is not None
+                            else "Видеофайл слишком большой для отправки. Попробуй другую ссылку"
+                        ),
                     )
 
                 logger.info(
@@ -301,9 +342,9 @@ class YtdlpProvider:
             if not used_format_ids:
                 raise DownloadError(
                     "downloaded invalid media and yt-dlp did not report used format ids",
-                    provider="yt-dlp",
-                    operation="download_video",
-                    details="missing_used_format_ids",
+                    component="yt-dlp",
+                    operation_name="download_video",
+                    public_message="Не удалось скачать видео. Проверь ссылку или попробуй позже",
                 )
 
             banned_format_ids.update(used_format_ids)
@@ -322,16 +363,16 @@ class YtdlpProvider:
             if format_id is not None:
                 raise DownloadError(
                     "selected video format produced invalid media",
-                    provider="yt-dlp",
-                    operation="download_video",
-                    details="selected_format_invalid",
+                    component="yt-dlp",
+                    operation_name="download_video",
+                    public_message="Не удалось скачать видео. Проверь ссылку или попробуй позже",
                 )
 
         raise DownloadError(
             "failed to download valid video with audio",
-            provider="yt-dlp",
-            operation="download_video",
-            details="no_valid_video_audio_streams",
+            component="yt-dlp",
+            operation_name="download_video",
+            public_message="Не удалось скачать видео. Проверь ссылку или попробуй позже",
         )
     
     async def download_video(self, url: str, output_dir: Path, format_id: str | None = None) -> Path:
@@ -354,8 +395,9 @@ class YtdlpProvider:
                 if raw_info is None:
                     raise EmptyResponseError(
                         "yt-dlp returned empty response",
-                        provider="yt-dlp",
-                        operation="get_video_formats",
+                        component="yt-dlp",
+                        operation_name="get_video_formats",
+                        public_message="Не удалось получить информацию о видео. Проверь ссылку",
                     )
 
                 info = ydl.sanitize_info(raw_info)
@@ -363,15 +405,21 @@ class YtdlpProvider:
         except YtdlpDownloadError as exc:
             raise DownloadError(
                 "yt-dlp failed to extract video formats",
-                provider="yt-dlp",
-                operation="get_video_formats",
+                component="yt-dlp",
+                operation_name="get_video_formats",
+                details=str(exc),
+                public_message=(
+                    "Не удалось получить форматы видео. "
+                    "Проверь ссылку или попробуй позже"
+                ),
             ) from exc
 
         if not isinstance(info, dict):
             raise UnexpectedResponseError(
                 f"yt-dlp returned unexpected response type: {type(info).__name__}",
-                provider="yt-dlp",
-                operation="get_video_formats",
+                component="yt-dlp",
+                operation_name="get_video_formats",
+                public_message="Не удалось разобрать доступные форматы видео",
             )
 
         formats = info.get("formats")
@@ -379,8 +427,9 @@ class YtdlpProvider:
         if not isinstance(formats, list):
             raise UnexpectedResponseError(
                 "yt-dlp returned invalid formats",
-                provider="yt-dlp",
-                operation="get_video_formats",
+                component="yt-dlp",
+                operation_name="get_video_formats",
+                public_message="Не удалось разобрать доступные форматы видео",
             )
         
         media_id = info.get("id")
@@ -388,8 +437,9 @@ class YtdlpProvider:
         if media_id is None:
             raise UnexpectedResponseError(
                 "yt-dlp returned info without media id",
-                provider="yt-dlp",
-                operation="get_video_formats",
+                component="yt-dlp",
+                operation_name="get_video_formats",
+                public_message="Не удалось разобрать доступные форматы видео",
             )
 
         result: list[AvailableVideoFormat] = []
@@ -428,9 +478,9 @@ class YtdlpProvider:
         if not result:
             raise EmptyResponseError(
                 "yt-dlp returned no available video formats",
-                provider="yt-dlp",
-                operation="get_video_formats",
-                details="formats",
+                component="yt-dlp",
+                operation_name="get_video_formats",
+                public_message="У этого видео не нашлось доступных форматов",
             )
 
         logger.debug("Video formats extracted formats_count=%d", len(result))

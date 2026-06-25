@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-from app.errors.service import (
+from app.errors.base import (
     EmptyQueryError,
     InvalidInputKindError,
     UnsupportedUrlError,
@@ -39,7 +39,8 @@ class SearchService:
         if not value:
             raise EmptyQueryError(
                 "search query is empty",
-                service="search",
+                component="search",
+                operation_name="parse_input",
             )
 
         parsed = urlparse(value)
@@ -52,7 +53,8 @@ class SearchService:
         if host is None:
             raise UnsupportedUrlError(
                 f"URL without host: {value}",
-                service="search",
+                component="search",
+                operation_name="parse_input",
             )
 
         if host in SPOTIFY_HOSTS:
@@ -78,9 +80,8 @@ class SearchService:
                 if parsed.hostname not in TIKTOK_HOSTS:
                     raise UrlResolutionError(
                         "TikTok short URL resolved to an unexpected host",
-                        service="search",
-                        operation="resolve_tiktok_url",
-                        details="unexpected_host",
+                        component="search",
+                        operation_name="resolve_tiktok_url",
                     )
 
             if "/photo/" in parsed.path:
@@ -95,9 +96,8 @@ class SearchService:
 
             raise UnsupportedUrlError(
                 f"unsupported TikTok URL path: {parsed.path}",
-                service="search",
-                operation="parse_input",
-                details="tiktok_path",
+                component="search",
+                operation_name="parse_input",
             )
 
         if (
@@ -167,12 +167,14 @@ class SearchService:
         if parsed_input.source == InputKind.UNSUPPORTED_URL:
             raise UnsupportedUrlError(
                 f"unsupported url: {parsed_input.query}",
-                service="search",
+                component="search",
+                operation_name="search",
             )
 
         raise InvalidInputKindError(
             f"invalid input kind: {parsed_input.source}",
-            service="search",
+            component="search",
+            operation_name="search",
         )
 
     async def _resolve_tiktok_short_url(self, url: str) -> str:
@@ -203,9 +205,8 @@ class SearchService:
             logger.warning("TikTok URL resolution timed out host=%s", host)
             raise UrlResolutionError(
                 "TikTok short URL resolution timed out",
-                service="search",
-                operation="resolve_tiktok_url",
-                details="timeout",
+                component="search",
+                operation_name="resolve_tiktok_url",
             ) from exc
         except aiohttp.ClientError as exc:
             logger.warning(
@@ -215,7 +216,7 @@ class SearchService:
             )
             raise UrlResolutionError(
                 "TikTok short URL resolution request failed",
-                service="search",
-                operation="resolve_tiktok_url",
-                details=exc.__class__.__name__,
+                component="search",
+                operation_name="resolve_tiktok_url",
+                details=str(exc),
             ) from exc
