@@ -254,7 +254,7 @@ class BotHandlers:
             exc.component,
             exc.operation_name,
             exc.details,
-            exc_info=True,
+            # exc_info=True,
         )
 
     @staticmethod

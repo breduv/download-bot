@@ -1,8 +1,10 @@
 import asyncio
 from logging import getLogger
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 import aiohttp
+from aiohttp_socks import ProxyConnector
 from mutagen import MutagenError # pyright: ignore[reportPrivateImportUsage]
 from mutagen.easyid3 import EasyID3
 from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPrivateImportUsage]
@@ -29,11 +31,27 @@ class CoverProvider:
     async def download_cover(self, url: str, output_dir: Path, filename: str = "cover.jpg") -> Path:
         cover_path = output_dir / filename
         timeout = aiohttp.ClientTimeout(total=10)
+        connector = None
+        request_proxy = self.proxy
+
+        if self.proxy is not None:
+            parsed_proxy = urlsplit(self.proxy)
+
+            if parsed_proxy.scheme in ("socks4", "socks5", "socks5h"):
+                request_proxy = None
+                rdns = parsed_proxy.scheme == "socks5h"
+                proxy_url = self.proxy
+
+                if rdns:
+                    proxy_url = urlunsplit(parsed_proxy._replace(scheme="socks5"))
+
+                connector = ProxyConnector.from_url(proxy_url, rdns=rdns)
+
         logger.debug("Cover download started filename=%s proxy=%s", filename, self.proxy is not None)
 
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
-                async with session.get(url, proxy=self.proxy) as response:
+            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
+                async with session.get(url, proxy=request_proxy) as response:
                     if response.status != 200:
                         raise DownloadError(
                             f"cover request returned status {response.status}",
