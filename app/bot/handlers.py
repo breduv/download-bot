@@ -116,12 +116,7 @@ class BotHandlers:
     async def handle_callback(self, callback: CallbackQuery) -> None:
         try:
             if callback.data is None:
-                raise InvalidCallbackDataError(
-                    "Callback data is empty",
-                    component="bot",
-                    operation_name="handle_callback",
-                    public_message="Пустая кнопка",
-                )
+                return 
 
             if not isinstance(callback.message, Message):
                 raise InvalidCallbackDataError(
