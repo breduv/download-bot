@@ -110,9 +110,11 @@ class BotHandlers:
         except (ProviderError, ServiceError) as exc:
             self._log_handled_error("text", exc)
             await self._send_error(msg, exc.public_message)
+            raise RuntimeError
         except Exception:
             logger.exception("Unexpected error while handling text message")
             await self._send_error(msg, "Произошла непредвиденная ошибка. Попробуй ещё раз позже")
+            raise RuntimeError
 
     async def handle_callback(self, callback: CallbackQuery) -> None:
         try:
@@ -195,12 +197,14 @@ class BotHandlers:
         except (ProviderError, ServiceError) as exc:
             self._log_handled_error("callback", exc)
             await self._send_callback_error(callback, exc.public_message)
+            raise RuntimeError
         except Exception:
             logger.exception("Unexpected error while handling callback")
             await self._send_callback_error(
                 callback,
                 "Произошла непредвиденная ошибка. Попробуй отправить запрос ещё раз.",
             )
+            raise RuntimeError
 
     @staticmethod
     async def _send_photos(msg: Message, photo_paths: list[Path]) -> None:
