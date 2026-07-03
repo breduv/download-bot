@@ -48,6 +48,7 @@ async def run_application(settings: Settings) -> None:
     router = setup_router(
         search_service=search_service,
         download_service=download_service,
+        inline_cache_chat_id=settings.inline_cache_chat_id,
     )
     dispatcher.include_router(router)
 

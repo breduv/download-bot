@@ -1,11 +1,32 @@
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import urlparse
+from uuid import uuid4
 
-from aiogram.types import CallbackQuery, FSInputFile, InputMediaPhoto, Message
+from aiogram import Bot
+from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
+from aiogram.types import (
+    CallbackQuery,
+    FSInputFile,
+    InlineQuery,
+    InlineQueryResultArticle,
+    InlineQueryResultCachedAudio,
+    InlineQueryResultCachedPhoto,
+    InlineQueryResultCachedVideo,
+    InlineQueryResultUnion,
+    InlineQueryResultsButton,
+    InputMediaPhoto,
+    InputTextMessageContent,
+    Message,
+)
 
 from app.bot.keyboard import build_search_results_keyboard
-from app.errors.base import AppError, InvalidCallbackDataError
+from app.errors.base import (
+    AppError,
+    InvalidCallbackDataError,
+    UnexpectedResponseError,
+)
 from app.services.download_service import DownloadService
 from app.services.search_service import SearchService
 
@@ -14,9 +35,15 @@ logger = getLogger(__name__)
 
 
 class BotHandlers:
-    def __init__(self, search_service: SearchService, download_service: DownloadService) -> None:
+    def __init__(
+        self,
+        search_service: SearchService,
+        download_service: DownloadService,
+        inline_cache_chat_id: int | None = None,
+    ) -> None:
         self.search_service = search_service
         self.download_service = download_service
+        self.inline_cache_chat_id = inline_cache_chat_id
 
     async def handle_text(self, msg: Message) -> None:
         try:
@@ -48,7 +75,7 @@ class BotHandlers:
                         )
                         logger.info("Audio sent user_id=%s", msg.from_user.id)
                 finally:
-                    await self._delete_loading_message(loading_msg)
+                    await self._delete_message(loading_msg)
 
                 return
 
@@ -62,10 +89,10 @@ class BotHandlers:
                             Path(temp_dir),
                         )
 
-                        await msg.answer_video(video=FSInputFile(file_path))
+                        await msg.answer_video(video=FSInputFile(file_path), supports_streaming=True)
                         logger.info("Video sent user_id=%s", msg.from_user.id)
                 finally:
-                    await self._delete_loading_message(loading_msg)
+                    await self._delete_message(loading_msg)
 
                 return
             
@@ -86,7 +113,7 @@ class BotHandlers:
                             len(photo_paths),
                         )
                 finally:
-                    await self._delete_loading_message(loading_msg)
+                    await self._delete_message(loading_msg)
 
                 return
 
@@ -161,7 +188,7 @@ class BotHandlers:
                         )
                         logger.info("Spotify audio sent user_id=%s", callback.from_user.id)
                 finally:
-                    await self._delete_loading_message(loading_msg)
+                    await self._delete_message(loading_msg)
 
                 return
 
@@ -193,14 +220,14 @@ class BotHandlers:
                             )
                             logger.info("YouTube audio sent user_id=%s", callback.from_user.id)
                         else:
-                            await msg.answer_video(video=FSInputFile(file_path))
+                            await msg.answer_video(video=FSInputFile(file_path), supports_streaming=True)
                             logger.info(
                                 "YouTube video sent user_id=%s format_id=%s",
                                 callback.from_user.id,
                                 format_id,
                             )
                 finally:
-                    await self._delete_loading_message(loading_msg)
+                    await self._delete_message(loading_msg)
 
                 return
 
@@ -218,6 +245,200 @@ class BotHandlers:
                 callback,
                 "Произошла непредвиденная ошибка. Попробуй отправить запрос ещё раз.",
             )
+
+    async def handle_inline_query(self, inline_query: InlineQuery, bot: Bot) -> None:
+        query = inline_query.query.strip()
+
+        if not query or not (urlparse(query).scheme in ("http", "https") and urlparse(query).hostname is not None):
+            await bot.answer_inline_query(inline_query_id=inline_query.id, results=[], cache_time=1)
+            return
+
+        try:
+            logger.info(
+                "Inline request received user_id=%s query_length=%d",
+                inline_query.from_user.id,
+                len(query),
+            )
+
+            response = await self.search_service.search(query)
+
+            with TemporaryDirectory() as temp_dir:
+                results = await self._build_inline_results(
+                    bot,
+                    inline_query,
+                    response,
+                    Path(temp_dir),
+                )
+
+            await bot.answer_inline_query(
+                inline_query_id=inline_query.id,
+                results=results,
+            )
+            
+            logger.info(
+                "Inline request answered user_id=%s results_count=%d",
+                inline_query.from_user.id,
+                len(results),
+            )
+        except TelegramForbiddenError:
+            logger.warning(
+                "Inline upload target is unavailable user_id=%s cache_chat_id=%s",
+                inline_query.from_user.id,
+                self.inline_cache_chat_id,
+                exc_info=True,
+            )
+            if self.inline_cache_chat_id is None:
+                public_message = "Сначала открой бота в личке, потом повтори inline-запрос"
+                result = InlineQueryResultArticle(
+                    id=uuid4().hex,
+                    title=public_message,
+                    description="Попробуй другую ссылку",
+                    input_message_content=InputTextMessageContent(message_text=public_message),
+                )
+
+                try:
+                    await bot.answer_inline_query(
+                        inline_query_id=inline_query.id,
+                        results=[result],
+                        cache_time=1,
+                        is_personal=True,
+                        button=InlineQueryResultsButton(
+                            text="Открыть бота",
+                            start_parameter="inline",
+                        ),
+                    )
+                except TelegramAPIError:
+                    logger.warning("Failed to answer inline query with start hint", exc_info=True)
+
+                return
+
+            await self._answer_inline_error(
+                bot,
+                inline_query,
+                "Бот не может загрузить файл в служебный чат",
+            )
+        except AppError as exc:
+            self._log_handled_error("inline_query", exc)
+            await self._answer_inline_error(bot, inline_query, exc.public_message)
+        except TelegramAPIError:
+            logger.exception("Telegram API error context=inline_query")
+            await self._answer_inline_error(
+                bot,
+                inline_query,
+                "Telegram не принял файл. Попробуй другую ссылку",
+            )
+        except Exception:
+            logger.exception("Unhandled request error context=inline_query")
+            await self._answer_inline_error(
+                bot,
+                inline_query,
+                "Произошла непредвиденная ошибка. Попробуй ещё раз позже",
+            )
+
+    async def _build_inline_results(
+        self,
+        bot: Bot,
+        inline_query: InlineQuery,
+        response: dict[str, str],
+        temp_dir: Path,
+    ) -> list[InlineQueryResultUnion]:
+        if response.get("audio") is not None:
+            file_path, cover_path = await self.download_service.download_media(response, temp_dir)
+
+            upload_msg = await bot.send_audio(
+                chat_id=self.inline_cache_chat_id or inline_query.from_user.id,
+                audio=FSInputFile(file_path),
+                thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
+                title=response.get("title"),
+                performer=response.get("artist"),
+                disable_notification=True,
+            )
+            
+            try:
+                if upload_msg.audio is None:
+                    raise UnexpectedResponseError(
+                        "Telegram did not return uploaded audio",
+                        component="telegram",
+                        operation_name="upload_inline_audio",
+                        public_message="Не удалось подготовить аудио для inline-отправки",
+                    )
+
+                return [InlineQueryResultCachedAudio(
+                    id=uuid4().hex,
+                    audio_file_id=upload_msg.audio.file_id,
+                )]
+            finally:
+                await self._delete_message(upload_msg)
+
+        if response.get("video") is not None:
+            file_path, _ = await self.download_service.download_media(response, temp_dir)
+
+            upload_msg = await bot.send_video(
+                chat_id=self.inline_cache_chat_id or inline_query.from_user.id,
+                video=FSInputFile(file_path),
+                supports_streaming=True,
+                disable_notification=True,
+            )
+            try:
+                if upload_msg.video is None:
+                    raise UnexpectedResponseError(
+                        "Telegram did not return uploaded video",
+                        component="telegram",
+                        operation_name="upload_inline_video",
+                        public_message="Не удалось подготовить видео для inline-отправки",
+                    )
+
+                return [InlineQueryResultCachedVideo(
+                    id=uuid4().hex,
+                    video_file_id=upload_msg.video.file_id,
+                    title="Видео",
+                )]
+            finally:
+                await self._delete_message(upload_msg)
+
+        if response.get("photo") is not None:
+            photo_paths = await self.download_service.download_photos(
+                response["photo"],
+                temp_dir,
+            )
+
+            results: list[InlineQueryResultUnion] = []
+            max_results = 10
+            total = min(len(photo_paths), max_results)
+
+            for index, photo_path in enumerate(photo_paths[:max_results], start=1):
+                upload_msg = await bot.send_photo(
+                    chat_id=self.inline_cache_chat_id or inline_query.from_user.id,
+                    photo=FSInputFile(photo_path),
+                    disable_notification=True,
+                )
+                try:
+                    if not upload_msg.photo:
+                        raise UnexpectedResponseError(
+                            "Telegram did not return uploaded photo",
+                            component="telegram",
+                            operation_name="upload_inline_photo",
+                            public_message="Не удалось подготовить фото для inline-отправки",
+                        )
+
+                    results.append(
+                        InlineQueryResultCachedPhoto(
+                            id=uuid4().hex,
+                            photo_file_id=upload_msg.photo[-1].file_id,
+                            title=f"Фото {index}/{total}",
+                        )
+                    )
+                finally:
+                    await self._delete_message(upload_msg)
+
+            return results
+
+        raise InvalidCallbackDataError(
+            "Inline query resolved to unsupported selection results",
+            component="bot",
+            operation_name="handle_inline_query",
+            public_message="Inline-режим сейчас работает только со ссылками",
+        )
 
     @staticmethod
     async def _send_photos(msg: Message, photo_paths: list[Path]) -> None:
@@ -253,11 +474,11 @@ class BotHandlers:
         )
 
     @staticmethod
-    async def _delete_loading_message(loading_msg: Message) -> None:
+    async def _delete_message(msg: Message) -> None:
         try:
-            await loading_msg.delete()
+            await msg.delete()
         except Exception:
-            logger.warning("Failed to delete loading message", exc_info=True)
+            logger.warning("Failed to delete message", exc_info=True)
 
     @staticmethod
     async def _send_error(msg: Message, public_message: str) -> None:
@@ -275,3 +496,21 @@ class BotHandlers:
             await callback.answer(public_message, show_alert=True)
         except Exception:
             logger.exception("Failed to send callback error to user")
+
+    async def _answer_inline_error(
+        self,
+        bot: Bot,
+        inline_query: InlineQuery,
+        public_message: str,
+    ) -> None:
+        result = InlineQueryResultArticle(
+            id=uuid4().hex,
+            title=public_message,
+            description="Попробуй другую ссылку",
+            input_message_content=InputTextMessageContent(message_text=public_message),
+        )
+
+        try:
+            await bot.answer_inline_query(inline_query_id=inline_query.id, results=[result], cache_time=1)
+        except TelegramAPIError:
+            logger.warning("Failed to answer inline query with error", exc_info=True)

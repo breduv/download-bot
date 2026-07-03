@@ -35,9 +35,11 @@ class Settings(BaseSettings):
 
     max_upload_size_mb: int = Field(default=49, ge=1)
 
-    @field_validator("media_proxy", "telegram_proxy", mode="before")
+    inline_cache_chat_id: int | None = Field(default=None)
+
+    @field_validator("media_proxy", "telegram_proxy", "inline_cache_chat_id", mode="before")
     @classmethod
-    def empty_proxy_to_none(cls, value: object) -> object:
+    def empty_value_to_none(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
             return None
         return value
