@@ -22,8 +22,8 @@ def configure_logging(level: int = logging.INFO) -> None:
 
     root_logger.addHandler(console_handler)
 
-    logging.getLogger("aiogram").setLevel(logging.WARNING)
-    # logging.getLogger("asyncio").setLevel(logging.WARNING)
-    # logging.getLogger("spotipy").setLevel(logging.WARNING)
-    # logging.getLogger("urllib3").setLevel(logging.WARNING)
-    # logging.getLogger("gallery-dl").setLevel(logging.WARNING)
+    logging.getLogger("aiogram").setLevel(level)
+    logging.getLogger("asyncio").setLevel(level)
+    logging.getLogger("spotipy").setLevel(level)
+    logging.getLogger("urllib3").setLevel(level)
+    logging.getLogger("gallery-dl").setLevel(level)
