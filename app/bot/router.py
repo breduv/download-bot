@@ -1,4 +1,5 @@
 from aiogram import F, Router
+from aiogram.filters import Command
 
 from app.bot.handlers import BotHandlers
 from app.services.download_service import DownloadService
@@ -19,8 +20,19 @@ def setup_router(
     )
 
     router.message.register(
+        handlers.handle_start,
+        Command("start"),
+    )
+
+    router.message.register(
+        handlers.handle_help,
+        Command("help"),
+    )
+
+    router.message.register(
         handlers.handle_text,
         F.text,
+        ~Command("start", "help"),
     )
 
     router.callback_query.register(
