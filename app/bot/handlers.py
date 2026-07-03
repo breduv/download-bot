@@ -250,7 +250,10 @@ class BotHandlers:
         query = inline_query.query.strip()
 
         if not query or not (urlparse(query).scheme in ("http", "https") and urlparse(query).hostname is not None):
-            await bot.answer_inline_query(inline_query_id=inline_query.id, results=[], cache_time=1)
+            try:
+                await bot.answer_inline_query(inline_query_id=inline_query.id, results=[], cache_time=1)
+            except TelegramAPIError:
+                logger.warning("Failed to answer empty inline query", exc_info=True)
             return
 
         try:
@@ -291,7 +294,7 @@ class BotHandlers:
                 public_message = "Сначала открой бота в личке, потом повтори inline-запрос"
                 result = InlineQueryResultArticle(
                     id=uuid4().hex,
-                    title=public_message,
+                    title="Открой бота в личке",
                     description="Попробуй другую ссылку",
                     input_message_content=InputTextMessageContent(message_text=public_message),
                 )
@@ -505,8 +508,7 @@ class BotHandlers:
     ) -> None:
         result = InlineQueryResultArticle(
             id=uuid4().hex,
-            title=public_message,
-            description="Попробуй другую ссылку",
+            title="Не удалось обработать ссылку",
             input_message_content=InputTextMessageContent(message_text=public_message),
         )
 
