@@ -1,3 +1,4 @@
+import asyncio
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -8,15 +9,15 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from aiogram.types import (
     CallbackQuery,
+    ChosenInlineResult,
     FSInputFile,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
     InlineQuery,
     InlineQueryResultArticle,
-    InlineQueryResultCachedAudio,
-    InlineQueryResultCachedPhoto,
-    InlineQueryResultCachedVideo,
-    InlineQueryResultUnion,
-    InlineQueryResultsButton,
+    InputMediaAudio,
     InputMediaPhoto,
+    InputMediaVideo,
     InputTextMessageContent,
     Message,
 )
@@ -145,6 +146,10 @@ class BotHandlers:
             if callback.data is None:
                 return 
 
+            if callback.data == "inline:pending":
+                await callback.answer("Файл готовится...")
+                return
+
             if not isinstance(callback.message, Message):
                 raise InvalidCallbackDataError(
                     "Callback message is missing",
@@ -263,93 +268,129 @@ class BotHandlers:
                 len(query),
             )
 
+            result = InlineQueryResultArticle(
+                id=uuid4().hex,
+                title="Скачать",
+                description="Нажми, и бот подготовит файл",
+                input_message_content=InputTextMessageContent(message_text="Готовлю файл..."),
+                reply_markup=self._build_inline_pending_keyboard(),
+            )
+
+            await bot.answer_inline_query(
+                inline_query_id=inline_query.id,
+                results=[result],
+            )
+            
+            logger.info(
+                "Inline placeholder answered user_id=%s",
+                inline_query.from_user.id,
+            )
+        except TelegramAPIError:
+            logger.exception("Telegram API error context=inline_query")
+        except Exception:
+            logger.exception("Unhandled request error context=inline_query")
+
+    async def handle_chosen_inline_result(
+        self,
+        chosen_inline_result: ChosenInlineResult,
+        bot: Bot,
+    ) -> None:
+        query = chosen_inline_result.query.strip()
+
+        if not query:
+            return
+
+        if chosen_inline_result.inline_message_id is None:
+            logger.warning(
+                "Chosen inline result without inline_message_id user_id=%s",
+                chosen_inline_result.from_user.id,
+            )
+            return
+
+        logger.info(
+            "Chosen inline result received user_id=%s result_id=%s query_length=%d",
+            chosen_inline_result.from_user.id,
+            chosen_inline_result.result_id,
+            len(query),
+        )
+
+        asyncio.create_task(
+            self._process_chosen_inline_result(bot, chosen_inline_result)
+        )
+
+    async def _process_chosen_inline_result(
+        self,
+        bot: Bot,
+        chosen_inline_result: ChosenInlineResult,
+    ) -> None:
+        inline_message_id = chosen_inline_result.inline_message_id
+        query = chosen_inline_result.query.strip()
+
+        if inline_message_id is None:
+            return
+
+        try:
             response = await self.search_service.search(query)
 
             with TemporaryDirectory() as temp_dir:
-                results = await self._build_inline_results(
+                await self._edit_inline_result_media(
                     bot,
-                    inline_query,
+                    chosen_inline_result,
                     response,
                     Path(temp_dir),
                 )
 
-            await bot.answer_inline_query(
-                inline_query_id=inline_query.id,
-                results=results,
-            )
-            
             logger.info(
-                "Inline request answered user_id=%s results_count=%d",
-                inline_query.from_user.id,
-                len(results),
+                "Chosen inline result processed user_id=%s",
+                chosen_inline_result.from_user.id,
             )
         except TelegramForbiddenError:
             logger.warning(
                 "Inline upload target is unavailable user_id=%s cache_chat_id=%s",
-                inline_query.from_user.id,
+                chosen_inline_result.from_user.id,
                 self.inline_cache_chat_id,
                 exc_info=True,
             )
-            if self.inline_cache_chat_id is None:
-                public_message = "Сначала открой бота в личке, потом повтори inline-запрос"
-                result = InlineQueryResultArticle(
-                    id=uuid4().hex,
-                    title="Открой бота в личке",
-                    description="Попробуй другую ссылку",
-                    input_message_content=InputTextMessageContent(message_text=public_message),
-                )
-
-                try:
-                    await bot.answer_inline_query(
-                        inline_query_id=inline_query.id,
-                        results=[result],
-                        cache_time=1,
-                        is_personal=True,
-                        button=InlineQueryResultsButton(
-                            text="Открыть бота",
-                            start_parameter="inline",
-                        ),
-                    )
-                except TelegramAPIError:
-                    logger.warning("Failed to answer inline query with start hint", exc_info=True)
-
-                return
-
-            await self._answer_inline_error(
-                bot,
-                inline_query,
-                "Бот не может загрузить файл в служебный чат",
+            public_message = (
+                "Сначала открой бота в личке, потом повтори inline-запрос"
+                if self.inline_cache_chat_id is None
+                else "Бот не может загрузить файл в служебный чат"
             )
+            await self._edit_inline_error(bot, inline_message_id, public_message)
         except AppError as exc:
             self._log_handled_error("inline_query", exc)
-            await self._answer_inline_error(bot, inline_query, exc.public_message)
+            await self._edit_inline_error(bot, inline_message_id, exc.public_message)
         except TelegramAPIError:
-            logger.exception("Telegram API error context=inline_query")
-            await self._answer_inline_error(
+            logger.exception("Telegram API error context=chosen_inline_result")
+            await self._edit_inline_error(
                 bot,
-                inline_query,
+                inline_message_id,
                 "Telegram не принял файл. Попробуй другую ссылку",
             )
         except Exception:
-            logger.exception("Unhandled request error context=inline_query")
-            await self._answer_inline_error(
+            logger.exception("Unhandled request error context=chosen_inline_result")
+            await self._edit_inline_error(
                 bot,
-                inline_query,
+                inline_message_id,
                 "Произошла непредвиденная ошибка. Попробуй ещё раз позже",
             )
 
-    async def _build_inline_results(
+    async def _edit_inline_result_media(
         self,
         bot: Bot,
-        inline_query: InlineQuery,
+        chosen_inline_result: ChosenInlineResult,
         response: dict[str, str],
         temp_dir: Path,
-    ) -> list[InlineQueryResultUnion]:
+    ) -> None:
+        inline_message_id = chosen_inline_result.inline_message_id
+
+        if inline_message_id is None:
+            return
+
         if response.get("audio") is not None:
             file_path, cover_path = await self.download_service.download_media(response, temp_dir)
-
             upload_msg = await bot.send_audio(
-                chat_id=self.inline_cache_chat_id or inline_query.from_user.id,
+                chat_id=self.inline_cache_chat_id or chosen_inline_result.from_user.id,
                 audio=FSInputFile(file_path),
                 thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
                 title=response.get("title"),
@@ -366,18 +407,24 @@ class BotHandlers:
                         public_message="Не удалось подготовить аудио для inline-отправки",
                     )
 
-                return [InlineQueryResultCachedAudio(
-                    id=uuid4().hex,
-                    audio_file_id=upload_msg.audio.file_id,
-                )]
+                await bot.edit_message_media(
+                    inline_message_id=inline_message_id,
+                    media=InputMediaAudio(
+                        media=upload_msg.audio.file_id,
+                        title=response.get("title"),
+                        performer=response.get("artist"),
+                    ),
+                )
             finally:
                 await self._delete_message(upload_msg)
+
+            return
 
         if response.get("video") is not None:
             file_path, _ = await self.download_service.download_media(response, temp_dir)
 
             upload_msg = await bot.send_video(
-                chat_id=self.inline_cache_chat_id or inline_query.from_user.id,
+                chat_id=self.inline_cache_chat_id or chosen_inline_result.from_user.id,
                 video=FSInputFile(file_path),
                 supports_streaming=True,
                 disable_notification=True,
@@ -391,13 +438,17 @@ class BotHandlers:
                         public_message="Не удалось подготовить видео для inline-отправки",
                     )
 
-                return [InlineQueryResultCachedVideo(
-                    id=uuid4().hex,
-                    video_file_id=upload_msg.video.file_id,
-                    title="Видео",
-                )]
+                await bot.edit_message_media(
+                    inline_message_id=inline_message_id,
+                    media=InputMediaVideo(
+                        media=upload_msg.video.file_id,
+                        supports_streaming=True,
+                    ),
+                )
             finally:
                 await self._delete_message(upload_msg)
+
+            return
 
         if response.get("photo") is not None:
             photo_paths = await self.download_service.download_photos(
@@ -405,42 +456,41 @@ class BotHandlers:
                 temp_dir,
             )
 
-            results: list[InlineQueryResultUnion] = []
-            max_results = 10
-            total = min(len(photo_paths), max_results)
-
-            for index, photo_path in enumerate(photo_paths[:max_results], start=1):
-                upload_msg = await bot.send_photo(
-                    chat_id=self.inline_cache_chat_id or inline_query.from_user.id,
-                    photo=FSInputFile(photo_path),
-                    disable_notification=True,
-                )
-                try:
-                    if not upload_msg.photo:
-                        raise UnexpectedResponseError(
-                            "Telegram did not return uploaded photo",
-                            component="telegram",
-                            operation_name="upload_inline_photo",
-                            public_message="Не удалось подготовить фото для inline-отправки",
-                        )
-
-                    results.append(
-                        InlineQueryResultCachedPhoto(
-                            id=uuid4().hex,
-                            photo_file_id=upload_msg.photo[-1].file_id,
-                            title=f"Фото {index}/{total}",
-                        )
+            upload_msg = await bot.send_photo(
+                chat_id=self.inline_cache_chat_id or chosen_inline_result.from_user.id,
+                photo=FSInputFile(photo_paths[0]),
+                disable_notification=True,
+            )
+            try:
+                if not upload_msg.photo:
+                    raise UnexpectedResponseError(
+                        "Telegram did not return uploaded photo",
+                        component="telegram",
+                        operation_name="upload_inline_photo",
+                        public_message="Не удалось подготовить фото для inline-отправки",
                     )
-                finally:
-                    await self._delete_message(upload_msg)
 
-            return results
+                await bot.edit_message_media(
+                    inline_message_id=inline_message_id,
+                    media=InputMediaPhoto(
+                        media=upload_msg.photo[-1].file_id,
+                        caption=(
+                            f"Фото 1/{len(photo_paths)}"
+                            if len(photo_paths) > 1
+                            else None
+                        ),
+                    ),
+                )
+            finally:
+                await self._delete_message(upload_msg)
+
+            return
 
         raise InvalidCallbackDataError(
             "Inline query resolved to unsupported selection results",
             component="bot",
             operation_name="handle_inline_query",
-            public_message="Inline-режим сейчас работает только со ссылками",
+            public_message="Эта ссылка пока не поддерживается в inline-режиме",
         )
 
     @staticmethod
@@ -500,19 +550,29 @@ class BotHandlers:
         except Exception:
             logger.exception("Failed to send callback error to user")
 
-    async def _answer_inline_error(
-        self,
-        bot: Bot,
-        inline_query: InlineQuery,
-        public_message: str,
-    ) -> None:
-        result = InlineQueryResultArticle(
-            id=uuid4().hex,
-            title="Не удалось обработать ссылку",
-            input_message_content=InputTextMessageContent(message_text=public_message),
+    @staticmethod
+    def _build_inline_pending_keyboard() -> InlineKeyboardMarkup:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="Готовлю...",
+                        callback_data="inline:pending",
+                    )
+                ]
+            ]
         )
 
+    @staticmethod
+    async def _edit_inline_error(
+        bot: Bot,
+        inline_message_id: str,
+        public_message: str,
+    ) -> None:
         try:
-            await bot.answer_inline_query(inline_query_id=inline_query.id, results=[result], cache_time=1)
+            await bot.edit_message_text(
+                inline_message_id=inline_message_id,
+                text=public_message,
+            )
         except TelegramAPIError:
-            logger.warning("Failed to answer inline query with error", exc_info=True)
+            logger.warning("Failed to edit inline message with error", exc_info=True)

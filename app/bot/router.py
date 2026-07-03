@@ -25,9 +25,10 @@ def setup_router(
 
     router.callback_query.register(
         handlers.handle_callback,
-        F.data.startswith("sp:") | F.data.startswith("yt:"),
+        F.data.startswith("sp:") | F.data.startswith("yt:") | (F.data == "inline:pending"),
     )
 
     router.inline_query.register(handlers.handle_inline_query)
+    router.chosen_inline_result.register(handlers.handle_chosen_inline_result)
 
     return router
