@@ -18,11 +18,12 @@ logger = getLogger(__name__)
 
 async def run_application(settings: Settings) -> None:
     logger.info(
-        "Initializing application search_limit=%d max_upload_size_mb=%d media_proxy=%s telegram_proxy=%s",
+        "Initializing application search_limit=%d max_upload_size_mb=%d media_proxy=%s telegram_proxy=%s inline_cache_chat_id=%s",
         settings.search_limit,
         settings.max_upload_size_mb,
         settings.media_proxy is not None,
         settings.telegram_proxy is not None,
+        settings.inline_cache_chat_id,
     )
 
     session = AiohttpSession(proxy=settings.telegram_proxy.get_secret_value() if settings.telegram_proxy else None)

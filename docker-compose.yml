@@ -19,6 +19,7 @@ services:
       LOG_LEVEL: ${LOG_LEVEL}
       SEARCH_LIMIT: ${SEARCH_LIMIT}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB}
+      INLINE_CACHE_CHAT_ID: ${INLINE_CACHE_CHAT_ID}
 
     logging:
       driver: json-file
