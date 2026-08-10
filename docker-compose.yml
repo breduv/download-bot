@@ -46,4 +46,4 @@ services:
 networks:
   monitoring:
     external: true
-    name: ${MONITORING_NETWORK:-monitoring}
+    name: monitoring
