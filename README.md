@@ -116,11 +116,7 @@ docker network create --driver bridge --internal monitoring
 The primary service metrics are `up{job="dw_bot"}`,
 `dw_bot_polling_up`, `dw_bot_telegram_api_up`,
 `dw_bot_telegram_last_success_timestamp_seconds`, and
-`dw_bot_telegram_check_duration_seconds`. Download activity is exposed through
-`dw_bot_downloads_total{kind,result}`, `dw_bot_active_downloads`,
-`dw_bot_download_bytes_total{kind}`, and
-`dw_bot_last_download_timestamp_seconds`. Labels contain only fixed media kinds
-and results; no usernames, URLs, queries, or filenames are exported.
+`dw_bot_telegram_check_duration_seconds`.
 
 Остановка:
 
