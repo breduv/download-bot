@@ -89,6 +89,35 @@ docker compose up -d --build
 docker compose logs -f download-bot
 ```
 
+### Prometheus monitoring
+
+The bot exposes Prometheus metrics on the internal `METRICS_PORT` (9101 by
+default). The port is not published on the Docker host. Both the bot and
+Prometheus must join the external Docker network named by
+`MONITORING_NETWORK` (`monitoring` by default).
+
+Add the following scrape job to Prometheus:
+
+```yaml
+scrape_configs:
+  - job_name: dw_bot
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["download-bot:9101"]
+```
+
+Create the shared network once before deploying the bot and attach Prometheus
+to the same network:
+
+```bash
+docker network create --driver bridge --internal monitoring
+```
+
+The primary service metrics are `up{job="dw_bot"}`,
+`dw_bot_polling_up`, `dw_bot_telegram_api_up`,
+`dw_bot_telegram_last_success_timestamp_seconds`, and
+`dw_bot_telegram_check_duration_seconds`.
+
 Остановка:
 
 ```powershell

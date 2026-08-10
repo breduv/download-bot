@@ -1,3 +1,5 @@
+import asyncio
+from contextlib import suppress
 from logging import getLogger
 
 from aiogram import Bot, Dispatcher
@@ -5,6 +7,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 
 from app.bot.router import setup_router
 from app.core import Settings
+from app.metrics import POLLING_UP, monitor_telegram_api, start_metrics
 from app.providers.cover import CoverProvider
 from app.providers.gallerydl import GallerydlProvider
 from app.providers.spotify import SpotifyProvider
@@ -53,11 +56,27 @@ async def run_application(settings: Settings) -> None:
     )
     dispatcher.include_router(router)
 
+    metrics_server = None
+    health_task = None
+
     try:
+        metrics_server = start_metrics(settings.metrics_port)
+        health_task = asyncio.create_task(
+            monitor_telegram_api(bot, settings.telegram_health_interval_seconds),
+            name="telegram-api-health",
+        )
         # await bot.set_my_commands(...)
         logger.info("Starting Telegram bot")
+        POLLING_UP.set(1)
         await dispatcher.start_polling(bot)
     finally:
+        POLLING_UP.set(0)
+        if health_task is not None:
+            health_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await health_task
+        if metrics_server is not None:
+            metrics_server.stop()
         logger.info("Stopping Telegram bot")
         await bot.session.close()
         logger.info("Telegram bot stopped")

@@ -37,6 +37,10 @@ class Settings(BaseSettings):
 
     inline_cache_chat_id: int | None = Field(default=None)
 
+    metrics_port: int = Field(default=9101, ge=1, le=65535)
+
+    telegram_health_interval_seconds: int = Field(default=30, ge=10, le=300)
+
     @field_validator("media_proxy", "telegram_proxy", "inline_cache_chat_id", mode="before")
     @classmethod
     def empty_value_to_none(cls, value: object) -> object:
