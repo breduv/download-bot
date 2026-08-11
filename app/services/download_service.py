@@ -1,6 +1,9 @@
 from logging import getLogger
 from pathlib import Path
+from urllib.parse import urlparse
 
+from app.errors.base import DownloadError
+from app.models.search import TIKTOK_HOSTS
 from app.providers.cover import CoverProvider
 from app.providers.gallerydl import GallerydlProvider
 from app.providers.spotify import SpotifyProvider
@@ -55,10 +58,26 @@ class DownloadService:
             return audio_path, cover_path
 
         logger.info("Video download started")
-        video_path = await self.ytdlp_provider.download_video(
-            url=media["video"],
-            output_dir=output_dir,
-        )
+        video_url = media["video"]
+
+        try:
+            video_path = await self.ytdlp_provider.download_video(
+                url=video_url,
+                output_dir=output_dir,
+            )
+        except DownloadError as exc:
+            if urlparse(video_url).hostname not in TIKTOK_HOSTS:
+                raise
+
+            logger.warning(
+                "yt-dlp TikTok download failed, trying gallery-dl fallback details=%s",
+                exc.details,
+            )
+            video_path = await self.gallerydl_provider.download_video(
+                url=video_url,
+                output_dir=output_dir,
+            )
+
         logger.info("Video download completed")
         return video_path, None
 

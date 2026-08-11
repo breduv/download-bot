@@ -149,3 +149,107 @@ class GallerydlProvider:
             url,
             output_dir,
         )
+
+    def _download_video_sync(self, url: str, output_dir: Path) -> Path:
+        options: list[tuple[tuple[str, ...], str, object]] = [
+            ((), "base-directory", str(output_dir)),
+            ((), "directory", ()),
+            ((), "filename", "gallery-dl-{id}.{extension}"),
+            (("extractor", "tiktok"), "photos", False),
+            (("extractor", "tiktok"), "audio", False),
+            (("extractor", "tiktok"), "videos", True),
+            (("extractor", "tiktok"), "covers", False),
+        ]
+
+        if self.proxy is not None:
+            options.append((("extractor", "tiktok"), "proxy", self.proxy))
+
+        logger.debug(
+            "Gallery-dl video fallback started proxy=%s",
+            self.proxy is not None,
+        )
+
+        try:
+            with self._config_lock, config.apply(options):
+                status = job.DownloadJob(url).run()
+        except exception.NoExtractorError as exc:
+            raise DownloadError(
+                "gallery-dl has no extractor for TikTok video URL",
+                component="gallery-dl",
+                operation_name="download_video",
+                details=str(exc),
+                public_message="Не удалось обработать эту ссылку на видео TikTok",
+            ) from exc
+        except exception.GalleryDLException as exc:
+            raise DownloadError(
+                "gallery-dl failed to initialize video download",
+                component="gallery-dl",
+                operation_name="download_video",
+                details=str(exc),
+                public_message="Не удалось скачать видео из TikTok. Попробуй позже",
+            ) from exc
+        except OSError as exc:
+            raise DownloadError(
+                "gallery-dl failed to access video output directory",
+                component="gallery-dl",
+                operation_name="download_video",
+                details=str(exc),
+                public_message="Не удалось скачать видео из TikTok. Попробуй позже",
+            ) from exc
+
+        if status:
+            raise DownloadError(
+                f"gallery-dl video download failed with status {status}",
+                component="gallery-dl",
+                operation_name="download_video",
+                public_message="Не удалось скачать видео из TikTok. Попробуй позже",
+            )
+
+        try:
+            video_files = [
+                path
+                for path in output_dir.rglob("*")
+                if path.is_file()
+                and not path.name.endswith(".part")
+                and path.name.startswith("gallery-dl-")
+                and path.suffix.lower() in {".mp4", ".mkv", ".mov", ".webm"}
+            ]
+            video_path = max(video_files, key=lambda path: path.stat().st_size)
+            size_bytes = video_path.stat().st_size
+        except ValueError as exc:
+            raise EmptyResponseError(
+                "gallery-dl did not download a video",
+                component="gallery-dl",
+                operation_name="download_video",
+                public_message="В публикации TikTok не нашлось доступного видео",
+            ) from exc
+        except OSError as exc:
+            raise DownloadError(
+                "failed to locate downloaded TikTok video",
+                component="gallery-dl",
+                operation_name="download_video",
+                details=str(exc),
+                public_message="Не удалось скачать видео из TikTok. Попробуй позже",
+            ) from exc
+
+        if size_bytes == 0:
+            raise EmptyResponseError(
+                "gallery-dl downloaded an empty video",
+                component="gallery-dl",
+                operation_name="download_video",
+                public_message="В публикации TikTok не нашлось доступного видео",
+            )
+
+        if size_bytes > self.max_upload_size_bytes:
+            raise MediaTooLargeError(
+                "downloaded TikTok video is too large",
+                component="gallery-dl",
+                operation_name="download_video",
+                public_message="Видеофайл слишком большой для отправки",
+            )
+
+        logger.info("Gallery-dl video fallback completed size_bytes=%d", size_bytes)
+        return video_path
+
+    async def download_video(self, url: str, output_dir: Path) -> Path:
+        return await asyncio.to_thread(self._download_video_sync, url, output_dir)
