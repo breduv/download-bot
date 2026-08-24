@@ -4,7 +4,7 @@
 
 **Telegram-бот для поиска музыки и скачивания медиа по ссылкам**
 
-![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Python 3.13](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
 ![aiogram 3](https://img.shields.io/badge/aiogram-3-2CA5E0?logo=telegram&logoColor=white)
 ![Docker Compose](https://img.shields.io/badge/Docker_Compose-ready-2496ED?logo=docker&logoColor=white)
 
