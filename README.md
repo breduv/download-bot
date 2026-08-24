@@ -8,7 +8,6 @@
 ![aiogram](https://img.shields.io/badge/aiogram-3.29-2CA5E0?logo=telegram&logoColor=white)
 ![yt-dlp](https://img.shields.io/badge/yt--dlp-2026.8.19-FF0000?logo=youtube&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Prometheus](https://img.shields.io/badge/Prometheus-metrics-E6522C?logo=prometheus&logoColor=white)
 
 Ищет треки по названию, разбирает ссылки популярных платформ, предлагает
 доступные форматы и отправляет готовые медиафайлы прямо в Telegram.
@@ -28,7 +27,6 @@
 | 🍪 **Cookies для YouTube** | Повторяет запрос с cookies, если обычная загрузка или получение форматов завершились ошибкой |
 | ⚡ **Inline-режим** | Принимает ссылки через `@username_бота <URL>` в любом чате |
 | 🌐 **Раздельные прокси** | Поддерживает независимые прокси для Telegram и внешних медиасервисов |
-| 📈 **Наблюдаемость** | Экспортирует Prometheus-метрики и проверяет доступность Telegram Bot API |
 | 🐳 **Готовый контейнер** | В образ уже входят Python, FFmpeg, `ffprobe` и Deno |
 
 ## Поддерживаемые источники
@@ -78,42 +76,44 @@ flowchart LR
 
 ### 1. Создайте `.env`
 
+```bash
+cp .env.example .env
+```
+
+Заполните обязательные значения:
+
 ```dotenv
 BOT_TOKEN=telegram-bot-token
 SPOTIFY_CLIENT_ID=spotify-client-id
 SPOTIFY_CLIENT_SECRET=spotify-client-secret
 
-# Файл внутри /app/data
-COOKIES_FILE=youtube.cookies.txt
-
 # Необязательно
+COOKIES_FILE=youtube.cookies.txt
 MEDIA_PROXY=
 TELEGRAM_PROXY=
 LOG_LEVEL=INFO
 SEARCH_LIMIT=5
 MAX_UPLOAD_SIZE_MB=49
 INLINE_CACHE_CHAT_ID=
-METRICS_PORT=9101
-TELEGRAM_HEALTH_INTERVAL_SECONDS=30
 ```
 
 Файл `.env` исключён из Git и Docker build context. Не добавляйте токены и
 секреты в репозиторий.
 
-### 2. Подготовьте YouTube cookies
+### 2. При необходимости добавьте YouTube cookies
 
-Текущий Compose монтирует серверный каталог `/home/gleb/dw_bot` внутрь
-контейнера как `/app/data`:
+Compose монтирует локальный каталог `data` внутрь контейнера как `/app/data`:
 
 ```text
-сервер:     /home/gleb/dw_bot/youtube.cookies.txt
+хост:       <каталог проекта>/data/youtube.cookies.txt
 контейнер:  /app/data/youtube.cookies.txt
 ```
 
-Скопируйте Netscape-файл cookies на сервер и ограничьте доступ к нему:
+Создайте каталог, поместите туда Netscape-файл cookies и ограничьте доступ:
 
 ```bash
-chmod 600 /home/gleb/dw_bot/youtube.cookies.txt
+mkdir -p data
+chmod 600 data/youtube.cookies.txt
 ```
 
 Имя файла должно совпадать со значением `COOKIES_FILE`. Путь в переменной не
@@ -122,25 +122,11 @@ chmod 600 /home/gleb/dw_bot/youtube.cookies.txt
 > **Безопасность:** cookies дают доступ к вашей YouTube-сессии. Используйте
 > отдельный аккаунт, не публикуйте файл и регулярно обновляйте его.
 
-### 3. Создайте monitoring-сеть
-
-Сеть является внешней для Compose и создаётся на Docker-хосте один раз:
-
-```bash
-docker network create --driver bridge --internal monitoring
-```
-
-### 4. Запустите бота
+### 3. Запустите бота
 
 ```bash
 docker compose up -d --build
 docker compose logs -f download-bot
-```
-
-Проверить состояние контейнера:
-
-```bash
-docker inspect --format='{{.State.Health.Status}}' download-bot
 ```
 
 Остановка:
@@ -163,13 +149,11 @@ docker compose down
 | `SEARCH_LIMIT` | `5` | Количество результатов Spotify, допустимо 1–10 |
 | `MAX_UPLOAD_SIZE_MB` | `49` | Максимальный размер одного медиафайла |
 | `INLINE_CACHE_CHAT_ID` | — | Чат или канал для служебной загрузки inline-медиа |
-| `METRICS_PORT` | `9101` | Внутренний порт Prometheus-метрик |
-| `TELEGRAM_HEALTH_INTERVAL_SECONDS` | `30` | Интервал проверки Telegram API, допустимо 10–300 секунд |
 | `IMAGE_TAG` | `latest` | Тег Docker-образа, используемый Compose |
 
-Обязательны `BOT_TOKEN`, `SPOTIFY_CLIENT_ID` и `SPOTIFY_CLIENT_SECRET`. В текущем
-Docker Compose также следует задать `COOKIES_FILE`: пустое значение не является
-именем файла и не пройдёт проверку конфигурации.
+Обязательны `BOT_TOKEN`, `SPOTIFY_CLIENT_ID` и `SPOTIFY_CLIENT_SECRET`.
+`COOKIES_FILE` можно оставить пустым; тогда повторные запросы с авторизацией
+будут отключены.
 
 ## Inline-режим
 
@@ -190,34 +174,6 @@ Docker Compose также следует задать `COOKIES_FILE`: пусто
 один раз открыть бота в личных сообщениях, чтобы Telegram разрешил служебную
 загрузку.
 
-## Мониторинг
-
-Метрики доступны внутри сетей Docker на `METRICS_PORT` (`9101` по умолчанию).
-Порт не публикуется на интерфейс Docker-хоста.
-
-Пример Prometheus job:
-
-```yaml
-scrape_configs:
-  - job_name: dw_bot
-    scrape_interval: 15s
-    static_configs:
-      - targets: ["download-bot:9101"]
-```
-
-Основные метрики:
-
-| Метрика | Значение |
-| --- | --- |
-| `dw_bot_polling_up` | Состояние Telegram long polling |
-| `dw_bot_telegram_api_up` | Результат последней проверки Telegram Bot API |
-| `dw_bot_telegram_last_success_timestamp_seconds` | Время последней успешной проверки |
-| `dw_bot_telegram_check_duration_seconds` | Длительность последней проверки |
-| `dw_bot_info` | Публичная информация о боте |
-
-Docker healthcheck проверяет доступность endpoint метрик, состояние polling и
-свежесть последнего успешного обращения к Telegram API.
-
 ## Структура проекта
 
 ```text
@@ -227,9 +183,7 @@ app/
 ├── errors/       # Прикладные исключения и публичные сообщения
 ├── models/       # Типы запросов и медиа
 ├── providers/    # Spotify, yt-dlp, gallery-dl и обработка обложек
-├── services/     # Разбор запросов и координация скачивания
-├── healthcheck.py
-└── metrics.py
+└── services/     # Разбор запросов и координация скачивания
 ```
 
 Точка входа — `main.py`. Загруженные файлы создаются во временных каталогах и
@@ -265,18 +219,6 @@ python main.py
 ```powershell
 python -m compileall -q app main.py
 ```
-
-## CI/CD
-
-GitLab CI для ветки `main`:
-
-1. Собирает образ `download-bot:<commit-sha>`.
-2. Передаёт тег в deploy job через dotenv-артефакт.
-3. Обновляет сервис без повторной сборки.
-4. Удаляет неиспользуемые Docker-образы после успешного деплоя.
-
-Runner должен иметь доступ к Docker daemon, внешней сети `monitoring`, каталогу
-с cookies и рабочему Compose-проекту.
 
 ## Безопасность и ограничения
 

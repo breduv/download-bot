@@ -40,10 +40,6 @@ class Settings(BaseSettings):
 
     inline_cache_chat_id: int | None = Field(default=None)
 
-    metrics_port: int = Field(default=9101, ge=1, le=65535)
-
-    telegram_health_interval_seconds: int = Field(default=30, ge=10, le=300)
-
     @field_validator("media_proxy", "telegram_proxy", "inline_cache_chat_id", mode="before")
     @classmethod
     def empty_value_to_none(cls, value: object) -> object:
@@ -54,6 +50,9 @@ class Settings(BaseSettings):
     @field_validator("cookies_file", mode="before")
     @classmethod
     def validate_cookies_file(cls, value: object) -> object:
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return None
+
         if not isinstance(value, (str, Path)):
             raise ValueError("Cookies path must be a file name")
 

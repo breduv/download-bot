@@ -5,3 +5,4 @@ requirements.in
 /logs
 .agents
 youtube.cookies.txt
+/data/

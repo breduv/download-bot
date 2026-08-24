@@ -1,0 +1,14 @@
+.git
+.gitignore
+.gitlab-ci.yml
+.env
+.venv
+**/__pycache__/
+*.py[cod]
+.cache
+.agents
+/data
+youtube.cookies.txt
+README.md
+docker-compose.yml
+requirements.in
