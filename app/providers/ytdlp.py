@@ -73,26 +73,7 @@ class YtdlpProvider:
                 info = ydl.sanitize_info(raw_info)
 
         except YtdlpDownloadError as exc:
-            if self.cookies_file:
-                options = options | {
-                    "cookiefile": self.cookies_file,
-                }
-
-                with YoutubeDL(options) as ydl: # pyright: ignore[reportArgumentType]
-                    raw_info = ydl.extract_info(target, download=True)
-
-                    if raw_info is None:
-                        raise EmptyResponseError(
-                            "yt-dlp returned empty response",
-                            component="yt-dlp",
-                            operation_name=operation,
-                            public_message=public_messages["empty_response"],
-                        )
-                        
-                    info = ydl.sanitize_info(raw_info)
-
-            else:
-
+            if not self.cookies_file:
                 raise DownloadError(
                     "yt-dlp failed to download target",
                     component="yt-dlp",
@@ -100,6 +81,45 @@ class YtdlpProvider:
                     details=str(exc),
                     public_message=public_messages["download_error"],
                 ) from exc
+
+            logger.warning(
+                "yt-dlp extraction failed without cookies, retrying with cookies "
+                "operation_name=%s details=%s",
+                operation,
+                str(exc),
+            )
+
+            retry_options = options | {
+                "cookiefile": self.cookies_file,
+            }
+
+            try:
+                with YoutubeDL(retry_options) as ydl:  # pyright: ignore[reportArgumentType]
+                    raw_info = ydl.extract_info(target, download=True)
+
+                    if raw_info is None:
+                        raise EmptyResponseError(
+                            "yt-dlp returned empty response with cookies",
+                            component="yt-dlp",
+                            operation_name=operation,
+                            public_message=public_messages["empty_response"],
+                        )
+
+                    info = ydl.sanitize_info(raw_info)
+
+            except YtdlpDownloadError as retry_exc:
+                raise DownloadError(
+                    "yt-dlp failed to download target with cookies",
+                    component="yt-dlp",
+                    operation_name=operation,
+                    details=str(retry_exc),
+                    public_message=public_messages["download_error"],
+                ) from retry_exc
+
+            logger.info(
+                "yt-dlp extraction succeeded with cookies operation_name=%s",
+                operation,
+            )
 
         if not isinstance(info, dict):
             raise UnexpectedResponseError(
