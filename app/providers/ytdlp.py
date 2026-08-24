@@ -445,16 +445,58 @@ class YtdlpProvider:
                 info = ydl.sanitize_info(raw_info)
 
         except YtdlpDownloadError as exc:
-            raise DownloadError(
-                "yt-dlp failed to extract video formats",
-                component="yt-dlp",
-                operation_name="get_video_formats",
-                details=str(exc),
-                public_message=(
-                    "Не удалось получить форматы видео. "
-                    "Проверь ссылку или попробуй позже"
-                ),
-            ) from exc
+            if not self.cookies_file:
+                raise DownloadError(
+                    "yt-dlp failed to extract video formats",
+                    component="yt-dlp",
+                    operation_name="get_video_formats",
+                    details=str(exc),
+                    public_message=(
+                        "Не удалось получить форматы видео. "
+                        "Проверь ссылку или попробуй позже"
+                    ),
+                ) from exc
+
+            logger.warning(
+                "yt-dlp format extraction failed without cookies, retrying with cookies "
+                "operation_name=get_video_formats details=%s",
+                str(exc),
+            )
+
+            retry_options = options | {
+                "cookiefile": self.cookies_file,
+            }
+
+            try:
+                with YoutubeDL(retry_options) as ydl:  # pyright: ignore[reportArgumentType]
+                    raw_info = ydl.extract_info(url, download=False)
+
+                    if raw_info is None:
+                        raise EmptyResponseError(
+                            "yt-dlp returned empty video formats response with cookies",
+                            component="yt-dlp",
+                            operation_name="get_video_formats",
+                            public_message="Не удалось получить информацию о видео. Проверь ссылку",
+                        )
+
+                    info = ydl.sanitize_info(raw_info)
+
+            except YtdlpDownloadError as retry_exc:
+                raise DownloadError(
+                    "yt-dlp failed to extract video formats with cookies",
+                    component="yt-dlp",
+                    operation_name="get_video_formats",
+                    details=str(retry_exc),
+                    public_message=(
+                        "Не удалось получить форматы видео. "
+                        "Проверь ссылку или попробуй позже"
+                    ),
+                ) from retry_exc
+
+            logger.info(
+                "yt-dlp format extraction succeeded with cookies "
+                "operation_name=get_video_formats",
+            )
 
         if not isinstance(info, dict):
             raise UnexpectedResponseError(
