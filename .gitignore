@@ -4,3 +4,4 @@ requirements.in
 .cache
 /logs
 .agents
+youtube.cookies.txt

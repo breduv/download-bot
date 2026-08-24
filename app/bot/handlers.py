@@ -552,13 +552,14 @@ class BotHandlers:
         exc: AppError,
     ) -> None:
         logger.warning(
-            "Handled request error context=%s code=%s component=%s operation_name=%s details=%s",
+            "Handled request error context=%s code=%s component=%s operation_name=%s message=%s details=%s",
             context,
             exc.code,
             exc.component,
             exc.operation_name,
+            exc.message,
             exc.details,
-            # exc_info=True,
+            exc_info=True,
         )
 
     @staticmethod

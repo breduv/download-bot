@@ -22,6 +22,10 @@ services:
       INLINE_CACHE_CHAT_ID: ${INLINE_CACHE_CHAT_ID}
       METRICS_PORT: ${METRICS_PORT:-9101}
       TELEGRAM_HEALTH_INTERVAL_SECONDS: ${TELEGRAM_HEALTH_INTERVAL_SECONDS:-30}
+      COOKIES_FILE: ${COOKIES_FILE}
+
+    volumes:
+      - "/home/gleb/dw_bot:/app/data"
 
     expose:
       - "${METRICS_PORT:-9101}"

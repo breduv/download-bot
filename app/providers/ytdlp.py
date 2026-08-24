@@ -26,7 +26,9 @@ class YtdlpProvider:
         }
         if settings.media_proxy:
             self.base_options["proxy"] = settings.media_proxy.get_secret_value()
-        
+
+        self.cookies_file = settings.cookies_file
+
         self.max_upload_size_bytes = settings.max_upload_size_mb * 1024 * 1024
 
     def _download(self, target: str, options: dict[str, Any], operation: str) -> dict[str, Any]:
@@ -71,13 +73,33 @@ class YtdlpProvider:
                 info = ydl.sanitize_info(raw_info)
 
         except YtdlpDownloadError as exc:
-            raise DownloadError(
-                "yt-dlp failed to download target",
-                component="yt-dlp",
-                operation_name=operation,
-                details=str(exc),
-                public_message=public_messages["download_error"],
-            ) from exc
+            if self.cookies_file:
+                options = options | {
+                    "cookiefile": self.cookies_file,
+                }
+
+                with YoutubeDL(options) as ydl: # pyright: ignore[reportArgumentType]
+                    raw_info = ydl.extract_info(target, download=True)
+
+                    if raw_info is None:
+                        raise EmptyResponseError(
+                            "yt-dlp returned empty response",
+                            component="yt-dlp",
+                            operation_name=operation,
+                            public_message=public_messages["empty_response"],
+                        )
+                        
+                    info = ydl.sanitize_info(raw_info)
+
+            else:
+
+                raise DownloadError(
+                    "yt-dlp failed to download target",
+                    component="yt-dlp",
+                    operation_name=operation,
+                    details=str(exc),
+                    public_message=public_messages["download_error"],
+                ) from exc
 
         if not isinstance(info, dict):
             raise UnexpectedResponseError(

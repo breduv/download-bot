@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
@@ -31,6 +32,8 @@ class Settings(BaseSettings):
         "CRITICAL",
     ] = Field(default="INFO")
 
+    cookies_file: str | None = Field(default=None)
+
     search_limit: int = Field(default=5, ge=1, le=10)
 
     max_upload_size_mb: int = Field(default=49, ge=1)
@@ -47,6 +50,18 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("cookies_file", mode="before")
+    @classmethod
+    def validate_cookies_file(cls, value: object) -> object:
+        if not isinstance(value, (str, Path)):
+            raise ValueError("Cookies path must be a file name")
+
+        data_dir = Path(__file__).resolve().parents[2] / "data"
+        cookies_file = data_dir / Path(value).name
+        if not cookies_file.is_file():
+            raise ValueError(f"Cookies file does not exist in data directory: {cookies_file}")
+        return str(cookies_file.resolve())
 
 
 @lru_cache
