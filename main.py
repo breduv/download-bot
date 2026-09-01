@@ -3,8 +3,7 @@ import logging
 import sys
 
 from app.application import run_application
-from app.core import get_settings, configure_logging
-
+from app.core import configure_logging, get_settings
 
 logger = logging.getLogger(__name__)
 

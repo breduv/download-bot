@@ -31,7 +31,6 @@ from app.errors.base import (
 from app.services.download_service import DownloadService
 from app.services.search_service import SearchService
 
-
 logger = getLogger(__name__)
 
 
@@ -131,7 +130,7 @@ class BotHandlers:
                     await self._delete_message(loading_msg)
 
                 return
-            
+
             if response.get("photo") is not None:
                 logger.info("Photo request resolved user_id=%s", msg.from_user.id)
                 loading_msg = await msg.answer("Скачиваю...")
@@ -179,7 +178,7 @@ class BotHandlers:
     async def handle_callback(self, callback: CallbackQuery) -> None:
         try:
             if callback.data is None:
-                return 
+                return
 
             if callback.data == "inline:pending":
                 await callback.answer("Файл готовится...")
@@ -315,7 +314,7 @@ class BotHandlers:
                 inline_query_id=inline_query.id,
                 results=[result],
             )
-            
+
             logger.info(
                 "Inline placeholder answered user_id=%s",
                 inline_query.from_user.id,
@@ -432,7 +431,7 @@ class BotHandlers:
                 performer=response.get("artist"),
                 disable_notification=True,
             )
-            
+
             try:
                 if upload_msg.audio is None:
                     raise UnexpectedResponseError(
@@ -559,7 +558,7 @@ class BotHandlers:
             exc.operation_name,
             exc.message,
             exc.details,
-            exc_info=True,
+            exc_info=exc,
         )
 
     @staticmethod

@@ -12,7 +12,6 @@ from app.providers.ytdlp import YtdlpProvider
 from app.services.download_service import DownloadService
 from app.services.search_service import SearchService
 
-
 logger = getLogger(__name__)
 
 
