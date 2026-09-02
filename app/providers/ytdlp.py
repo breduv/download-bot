@@ -1,17 +1,21 @@
 import asyncio
 import json
+import subprocess
 from logging import getLogger
 from pathlib import Path
-import subprocess
 from typing import Any, cast
 
 from yt_dlp import YoutubeDL
 from yt_dlp.utils import DownloadError as YtdlpDownloadError
 
 from app.core.config import Settings
-from app.errors.base import DownloadError, EmptyResponseError, MediaTooLargeError, UnexpectedResponseError
+from app.errors.base import (
+    DownloadError,
+    EmptyResponseError,
+    MediaTooLargeError,
+    UnexpectedResponseError,
+)
 from app.models.media import AvailableVideoFormat
-
 
 logger = getLogger(__name__)
 
@@ -31,12 +35,13 @@ class YtdlpProvider:
 
         self.max_upload_size_bytes = settings.max_upload_size_mb * 1024 * 1024
 
-    def _download(self, target: str, options: dict[str, Any], operation: str) -> dict[str, Any]:
+    def _download(
+        self, target: str, options: dict[str, Any], operation: str
+    ) -> dict[str, Any]:
         public_messages = {
             "download_audio": {
                 "empty_response": (
-                    "Не удалось получить информацию об аудио. "
-                    "Проверь ссылку или запрос"
+                    "Не удалось получить информацию об аудио. Проверь ссылку или запрос"
                 ),
                 "download_error": "Не удалось скачать аудио. Попробуй другую ссылку или запрос",
                 "unexpected_response": (
@@ -59,7 +64,7 @@ class YtdlpProvider:
             "url" if target.startswith(("http://", "https://")) else "search",
         )
         try:
-            with YoutubeDL(options) as ydl: # pyright: ignore[reportArgumentType]
+            with YoutubeDL(options) as ydl:  # pyright: ignore[reportArgumentType]
                 raw_info = ydl.extract_info(target, download=True)
 
                 if raw_info is None:
@@ -69,7 +74,7 @@ class YtdlpProvider:
                         operation_name=operation,
                         public_message=public_messages["empty_response"],
                     )
-                    
+
                 info = ydl.sanitize_info(raw_info)
 
         except YtdlpDownloadError as exc:
@@ -128,7 +133,7 @@ class YtdlpProvider:
                 operation_name=operation,
                 public_message=public_messages["unexpected_response"],
             )
-        
+
         entries = info.get("entries")
 
         if entries is None:
@@ -163,8 +168,10 @@ class YtdlpProvider:
 
         logger.debug("yt-dlp extraction completed operation_name=%s", operation)
         return cast(dict[str, Any], entry)
-    
-    def _download_audio_sync(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
+
+    def _download_audio_sync(
+        self, query_or_url: str, output_dir: Path
+    ) -> tuple[Path, Path | None]:
         options = self.base_options | {
             "format": "bestaudio/best[acodec!=none]",
             "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
@@ -204,7 +211,7 @@ class YtdlpProvider:
                 ),
             )
 
-        file_path = output_dir / (media_id+".mp3")
+        file_path = output_dir / (media_id + ".mp3")
         if not file_path.is_file():
             raise DownloadError(
                 "downloaded file was not found",
@@ -214,7 +221,7 @@ class YtdlpProvider:
             )
 
         filesize = file_path.stat().st_size
-        
+
         if filesize > self.max_upload_size_bytes:
             raise MediaTooLargeError(
                 "downloaded media file is too large",
@@ -222,9 +229,9 @@ class YtdlpProvider:
                 operation_name="download_audio",
                 public_message="Аудиофайл слишком большой для отправки. Попробуй другой трек",
             )
-        
+
         cover_path = None
-        
+
         for suffix in (".jpg", ".jpeg", ".png", ".webp"):
             candidate = output_dir / f"{media_id}{suffix}"
 
@@ -239,23 +246,28 @@ class YtdlpProvider:
             cover_path is not None,
         )
         return file_path, cover_path
-    
-    async def download_audio(self, query_or_url: str, output_dir: Path) -> tuple[Path, Path | None]:
+
+    async def download_audio(
+        self, query_or_url: str, output_dir: Path
+    ) -> tuple[Path, Path | None]:
         return await asyncio.to_thread(
             self._download_audio_sync,
             query_or_url,
             output_dir,
         )
-    
+
     @staticmethod
     def _probe_has_video_and_audio(file_path: Path) -> tuple[bool, bool]:
         try:
             result = subprocess.run(
                 [
                     "ffprobe",
-                    "-v", "error",
-                    "-show_entries", "stream=codec_type",
-                    "-of", "json",
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "stream=codec_type",
+                    "-of",
+                    "json",
                     str(file_path),
                 ],
                 capture_output=True,
@@ -284,7 +296,7 @@ class YtdlpProvider:
         has_audio = any(stream.get("codec_type") == "audio" for stream in streams)
 
         return has_video, has_audio
-    
+
     def _get_used_format_ids(self, info: dict[str, Any]) -> list[str]:
         requested_formats = info.get("requested_formats")
 
@@ -308,13 +320,17 @@ class YtdlpProvider:
             return [part for part in format_id.split("+") if part]
 
         return []
-        
-    def _download_video_sync(self, url: str, format_id: str | None, output_dir: Path) -> Path:
+
+    def _download_video_sync(
+        self, url: str, format_id: str | None, output_dir: Path
+    ) -> Path:
         banned_format_ids: set[str] = set()
         max_attempts = 3
 
         for attempt in range(1, max_attempts + 1):
-            exclude = "".join(f"[format_id!={format_id}]" for format_id in banned_format_ids)
+            exclude = "".join(
+                f"[format_id!={format_id}]" for format_id in banned_format_ids
+            )
 
             if format_id is None and attempt == 1:
                 format_selector = f"bestvideo*{exclude}+bestaudio{exclude}/best[vcodec!=none][acodec!=none]{exclude}"
@@ -325,10 +341,12 @@ class YtdlpProvider:
                     f"best[vcodec!=none][acodec!=none]{exclude}"
                 )
             else:
-                format_selector = f"{format_id}+bestaudio/{format_id}[vcodec!=none][acodec!=none]"
+                format_selector = (
+                    f"{format_id}+bestaudio/{format_id}[vcodec!=none][acodec!=none]"
+                )
 
             options = self.base_options | {
-                'format': format_selector,
+                "format": format_selector,
                 "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
                 "merge_output_format": "mp4",
                 "recodevideo": "mp4",
@@ -345,7 +363,7 @@ class YtdlpProvider:
                     public_message="Не удалось обработать данные видео. Попробуй другую ссылку",
                 )
 
-            file_path = output_dir / (str(media_id)+".mp4")
+            file_path = output_dir / (str(media_id) + ".mp4")
             if not file_path.is_file():
                 raise DownloadError(
                     "downloaded file was not found",
@@ -353,12 +371,12 @@ class YtdlpProvider:
                     operation_name="download_video",
                     public_message="Не удалось скачать видео. Проверь ссылку или попробуй позже",
                 )
-            
+
             has_video, has_audio = self._probe_has_video_and_audio(file_path)
 
             if has_video and has_audio:
                 filesize = file_path.stat().st_size
-                
+
                 if filesize > self.max_upload_size_bytes:
                     raise MediaTooLargeError(
                         "downloaded media file is too large",
@@ -378,7 +396,7 @@ class YtdlpProvider:
                     format_id or "auto",
                 )
                 return file_path
-            
+
             used_format_ids = self._get_used_format_ids(info)
 
             if not used_format_ids:
@@ -416,15 +434,17 @@ class YtdlpProvider:
             operation_name="download_video",
             public_message="Не удалось скачать видео. Проверь ссылку или попробуй позже",
         )
-    
-    async def download_video(self, url: str, output_dir: Path, format_id: str | None = None) -> Path:
+
+    async def download_video(
+        self, url: str, output_dir: Path, format_id: str | None = None
+    ) -> Path:
         return await asyncio.to_thread(
             self._download_video_sync,
             url,
             format_id,
             output_dir,
         )
-        
+
     def _get_video_formats_sync(self, url: str) -> list[AvailableVideoFormat]:
         options = self.base_options | {
             "skip_download": True,
@@ -515,7 +535,7 @@ class YtdlpProvider:
                 operation_name="get_video_formats",
                 public_message="Не удалось разобрать доступные форматы видео",
             )
-        
+
         media_id = info.get("id")
 
         if media_id is None:
@@ -569,7 +589,7 @@ class YtdlpProvider:
 
         logger.debug("Video formats extracted formats_count=%d", len(result))
         return sorted(result, key=lambda item: item.height, reverse=True)
-    
+
     async def get_video_formats(self, url: str) -> list[AvailableVideoFormat]:
         return await asyncio.to_thread(
             self._get_video_formats_sync,

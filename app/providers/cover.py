@@ -5,9 +5,11 @@ from urllib.parse import urlsplit, urlunsplit
 
 import aiohttp
 from aiohttp_socks import ProxyConnector
-from mutagen import MutagenError # pyright: ignore[reportPrivateImportUsage]
+from mutagen._util import MutagenError
 from mutagen.easyid3 import EasyID3
-from mutagen.id3 import APIC, ID3, ID3NoHeaderError # pyright: ignore[reportPrivateImportUsage]
+from mutagen.id3 import ID3
+from mutagen.id3._frames import APIC
+from mutagen.id3._util import ID3NoHeaderError
 
 from app.core.config import Settings
 from app.errors.base import (
@@ -15,7 +17,6 @@ from app.errors.base import (
     ProviderTimeoutError,
     UnexpectedResponseError,
 )
-
 
 logger = getLogger(__name__)
 
@@ -28,7 +29,9 @@ class CoverProvider:
             else None
         )
 
-    async def download_cover(self, url: str, output_dir: Path, filename: str = "cover.jpg") -> Path:
+    async def download_cover(
+        self, url: str, output_dir: Path, filename: str = "cover.jpg"
+    ) -> Path:
         cover_path = output_dir / filename
         timeout = aiohttp.ClientTimeout(total=10)
         connector = None
@@ -47,20 +50,26 @@ class CoverProvider:
 
                 connector = ProxyConnector.from_url(proxy_url, rdns=rdns)
 
-        logger.debug("Cover download started filename=%s proxy=%s", filename, self.proxy is not None)
+        logger.debug(
+            "Cover download started filename=%s proxy=%s",
+            filename,
+            self.proxy is not None,
+        )
 
         try:
-            async with aiohttp.ClientSession(timeout=timeout, connector=connector) as session:
-                async with session.get(url, proxy=request_proxy) as response:
-                    if response.status != 200:
-                        raise DownloadError(
-                            f"cover request returned status {response.status}",
-                            component="cover",
-                            operation_name="download_cover",
-                            public_message="Не удалось скачать обложку трека. Попробуй позже",
-                        )
+            async with (
+                aiohttp.ClientSession(timeout=timeout, connector=connector) as session,
+                session.get(url, proxy=request_proxy) as response,
+            ):
+                if response.status != 200:
+                    raise DownloadError(
+                        f"cover request returned status {response.status}",
+                        component="cover",
+                        operation_name="download_cover",
+                        public_message="Не удалось скачать обложку трека. Попробуй позже",
+                    )
 
-                    content = await response.read()
+                content = await response.read()
 
             if not content:
                 raise DownloadError(
@@ -103,7 +112,7 @@ class CoverProvider:
 
         logger.info("Cover downloaded size_bytes=%d", len(content))
         return cover_path
-    
+
     def _set_mp3_cover(self, mp3_path: Path, cover_path: Path) -> None:
         try:
             try:
@@ -152,7 +161,7 @@ class CoverProvider:
             operation_name="set_mp3_cover",
             public_message="Формат обложки не поддерживается",
         )
-            
+
     async def set_mp3_cover(self, mp3_path: Path, cover_path: Path) -> None:
         await asyncio.to_thread(
             self._set_mp3_cover,
@@ -182,11 +191,10 @@ class CoverProvider:
                 public_message="Не удалось добавить данные о треке в аудиофайл",
             ) from exc
 
-    async def set_mp3_metadata(self, mp3_path: Path, *, title: str, artist: str) -> None:
+    async def set_mp3_metadata(
+        self, mp3_path: Path, *, title: str, artist: str
+    ) -> None:
         await asyncio.to_thread(
-            self._set_mp3_metadata,
-            mp3_path,
-            title=title,
-            artist=artist
+            self._set_mp3_metadata, mp3_path, title=title, artist=artist
         )
         logger.debug("MP3 metadata written")

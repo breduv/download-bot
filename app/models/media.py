@@ -8,6 +8,7 @@ class TrackInfo:
     cover_url: str | None
     track_id: str
 
+
 @dataclass(frozen=True)
 class AvailableVideoFormat:
     video_id: str

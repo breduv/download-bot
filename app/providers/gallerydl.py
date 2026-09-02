@@ -12,7 +12,6 @@ from app.errors.base import (
     MediaTooLargeError,
 )
 
-
 logger = getLogger(__name__)
 
 

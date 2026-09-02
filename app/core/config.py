@@ -40,7 +40,9 @@ class Settings(BaseSettings):
 
     inline_cache_chat_id: int | None = Field(default=None)
 
-    @field_validator("media_proxy", "telegram_proxy", "inline_cache_chat_id", mode="before")
+    @field_validator(
+        "media_proxy", "telegram_proxy", "inline_cache_chat_id", mode="before"
+    )
     @classmethod
     def empty_value_to_none(cls, value: object) -> object:
         if isinstance(value, str) and not value.strip():
@@ -54,15 +56,17 @@ class Settings(BaseSettings):
             return None
 
         if not isinstance(value, (str, Path)):
-            raise ValueError("Cookies path must be a file name")
+            raise TypeError("Cookies path must be a file name")
 
         data_dir = Path(__file__).resolve().parents[2] / "data"
         cookies_file = data_dir / Path(value).name
         if not cookies_file.is_file():
-            raise ValueError(f"Cookies file does not exist in data directory: {cookies_file}")
+            raise ValueError(
+                f"Cookies file does not exist in data directory: {cookies_file}"
+            )
         return str(cookies_file.resolve())
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    return Settings()  # type: ignore[call-arg]

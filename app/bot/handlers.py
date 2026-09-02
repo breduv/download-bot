@@ -99,14 +99,19 @@ class BotHandlers:
                 loading_msg = await msg.answer("Скачиваю...")
                 try:
                     with TemporaryDirectory() as temp_dir:
-                        file_path, cover_path = await self.download_service.download_media(
+                        (
+                            file_path,
+                            cover_path,
+                        ) = await self.download_service.download_media(
                             response,
                             Path(temp_dir),
                         )
 
                         await msg.answer_audio(
                             audio=FSInputFile(file_path),
-                            thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
+                            thumbnail=FSInputFile(cover_path)
+                            if cover_path is not None
+                            else None,
                         )
                         logger.info("Audio sent user_id=%s", msg.from_user.id)
                 finally:
@@ -124,7 +129,9 @@ class BotHandlers:
                             Path(temp_dir),
                         )
 
-                        await msg.answer_video(video=FSInputFile(file_path), supports_streaming=True)
+                        await msg.answer_video(
+                            video=FSInputFile(file_path), supports_streaming=True
+                        )
                         logger.info("Video sent user_id=%s", msg.from_user.id)
                 finally:
                     await self._delete_message(loading_msg)
@@ -173,7 +180,9 @@ class BotHandlers:
             await self._send_error(msg, exc.public_message)
         except Exception:
             logger.exception("Unhandled request error context=text")
-            await self._send_error(msg, "Произошла непредвиденная ошибка. Попробуй ещё раз позже")
+            await self._send_error(
+                msg, "Произошла непредвиденная ошибка. Попробуй ещё раз позже"
+            )
 
     async def handle_callback(self, callback: CallbackQuery) -> None:
         try:
@@ -216,16 +225,23 @@ class BotHandlers:
                 loading_msg = await msg.answer("Скачиваю...")
                 try:
                     with TemporaryDirectory() as temp_dir:
-                        file_path, cover_path = await self.download_service.download_on_spotify(
+                        (
+                            file_path,
+                            cover_path,
+                        ) = await self.download_service.download_on_spotify(
                             track_id,
                             Path(temp_dir),
                         )
 
                         await msg.answer_audio(
                             audio=FSInputFile(file_path),
-                            thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
+                            thumbnail=FSInputFile(cover_path)
+                            if cover_path is not None
+                            else None,
                         )
-                        logger.info("Spotify audio sent user_id=%s", callback.from_user.id)
+                        logger.info(
+                            "Spotify audio sent user_id=%s", callback.from_user.id
+                        )
                 finally:
                     await self._delete_message(loading_msg)
 
@@ -246,7 +262,10 @@ class BotHandlers:
                 loading_msg = await msg.answer("Скачиваю...")
                 try:
                     with TemporaryDirectory() as temp_dir:
-                        file_path, cover_path = await self.download_service.download_on_youtube(
+                        (
+                            file_path,
+                            cover_path,
+                        ) = await self.download_service.download_on_youtube(
                             video_url,
                             format_id,
                             Path(temp_dir),
@@ -255,11 +274,17 @@ class BotHandlers:
                         if format_id == "-1":
                             await msg.answer_audio(
                                 audio=FSInputFile(file_path),
-                                thumbnail=FSInputFile(cover_path) if cover_path is not None else None,
+                                thumbnail=FSInputFile(cover_path)
+                                if cover_path is not None
+                                else None,
                             )
-                            logger.info("YouTube audio sent user_id=%s", callback.from_user.id)
+                            logger.info(
+                                "YouTube audio sent user_id=%s", callback.from_user.id
+                            )
                         else:
-                            await msg.answer_video(video=FSInputFile(file_path), supports_streaming=True)
+                            await msg.answer_video(
+                                video=FSInputFile(file_path), supports_streaming=True
+                            )
                             logger.info(
                                 "YouTube video sent user_id=%s format_id=%s",
                                 callback.from_user.id,
@@ -288,9 +313,14 @@ class BotHandlers:
     async def handle_inline_query(self, inline_query: InlineQuery, bot: Bot) -> None:
         query = inline_query.query.strip()
 
-        if not query or not (urlparse(query).scheme in ("http", "https") and urlparse(query).hostname is not None):
+        if not query or not (
+            urlparse(query).scheme in ("http", "https")
+            and urlparse(query).hostname is not None
+        ):
             try:
-                await bot.answer_inline_query(inline_query_id=inline_query.id, results=[], cache_time=1)
+                await bot.answer_inline_query(
+                    inline_query_id=inline_query.id, results=[], cache_time=1
+                )
             except TelegramAPIError:
                 logger.warning("Failed to answer empty inline query", exc_info=True)
             return
@@ -306,7 +336,9 @@ class BotHandlers:
                 id=uuid4().hex,
                 title="Скачать",
                 description="Нажми, и бот подготовит файл",
-                input_message_content=InputTextMessageContent(message_text="Готовлю файл..."),
+                input_message_content=InputTextMessageContent(
+                    message_text="Готовлю файл..."
+                ),
                 reply_markup=self._build_inline_pending_keyboard(),
             )
 
@@ -422,7 +454,9 @@ class BotHandlers:
             return
 
         if response.get("audio") is not None:
-            file_path, cover_path = await self.download_service.download_media(response, temp_dir)
+            file_path, cover_path = await self.download_service.download_media(
+                response, temp_dir
+            )
             upload_msg = await bot.send_audio(
                 chat_id=self.inline_cache_chat_id or chosen_inline_result.from_user.id,
                 audio=FSInputFile(file_path),
@@ -455,7 +489,9 @@ class BotHandlers:
             return
 
         if response.get("video") is not None:
-            file_path, _ = await self.download_service.download_media(response, temp_dir)
+            file_path, _ = await self.download_service.download_media(
+                response, temp_dir
+            )
 
             upload_msg = await bot.send_video(
                 chat_id=self.inline_cache_chat_id or chosen_inline_result.from_user.id,
@@ -532,7 +568,7 @@ class BotHandlers:
         max_group_size = 10
 
         for start in range(0, len(photo_paths), max_group_size):
-            batch = photo_paths[start:start + max_group_size]
+            batch = photo_paths[start : start + max_group_size]
             logger.debug("Sending photo batch photos_count=%d", len(batch))
 
             if len(batch) == 1:
@@ -540,10 +576,9 @@ class BotHandlers:
                 continue
 
             media = [
-                InputMediaPhoto(media=FSInputFile(photo_path))
-                for photo_path in batch
+                InputMediaPhoto(media=FSInputFile(photo_path)) for photo_path in batch
             ]
-            await msg.answer_media_group(media=media) # pyright: ignore[reportArgumentType]
+            await msg.answer_media_group(media=media)  # pyright: ignore[reportArgumentType]
 
     @staticmethod
     def _log_handled_error(
@@ -575,7 +610,9 @@ class BotHandlers:
         except Exception:
             logger.exception("Failed to send error message to user")
 
-    async def _send_callback_error(self, callback: CallbackQuery, public_message: str) -> None:
+    async def _send_callback_error(
+        self, callback: CallbackQuery, public_message: str
+    ) -> None:
         if isinstance(callback.message, Message):
             await self._send_error(callback.message, public_message)
             return

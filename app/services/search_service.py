@@ -24,12 +24,13 @@ from app.models.search import (
 from app.providers.spotify import SpotifyProvider
 from app.providers.ytdlp import YtdlpProvider
 
-
 logger = getLogger(__name__)
 
 
 class SearchService:
-    def __init__(self, spotify_provider: SpotifyProvider, ytdlp_provider: YtdlpProvider) -> None:
+    def __init__(
+        self, spotify_provider: SpotifyProvider, ytdlp_provider: YtdlpProvider
+    ) -> None:
         self.spotify_provider = spotify_provider
         self.ytdlp_provider = ytdlp_provider
 
@@ -47,7 +48,7 @@ class SearchService:
 
         if parsed.scheme not in ("http", "https") and not parsed.netloc:
             return ParsedInput(InputKind.QUERY, value)
-        
+
         host = parsed.hostname
 
         if host is None:
@@ -103,12 +104,13 @@ class SearchService:
         if (
             host in PINTEREST_HOSTS
             or host in INSTAGRAM_HOSTS
-            or host in VK_HOSTS and parsed.path.startswith(("/clip", "/clips"))
+            or host in VK_HOSTS
+            and parsed.path.startswith(("/clip", "/clips"))
         ):
             return ParsedInput(InputKind.VIDEO, value)
 
         return ParsedInput(InputKind.UNSUPPORTED_URL, value)
-    
+
     async def search(self, text: str) -> dict[str, str]:
         parsed_input = await self._parse_input(text)
         logger.debug("Search input parsed source=%s", parsed_input.source)
@@ -134,35 +136,29 @@ class SearchService:
             results[f"yt:{video_id}:-1"] = "Только звук"
 
             return results
-        
+
         if parsed_input.source == InputKind.SPOTIFY:
             track = await self.spotify_provider.get_track(parsed_input.query)
             logger.info("Spotify track resolved track_id=%s", track.track_id)
             result = {
                 "audio": f"{track.artist} - {track.title}",
                 "title": track.title,
-                "artist": track.artist
+                "artist": track.artist,
             }
 
             cover_url = track.cover_url
             if cover_url:
                 result["cover_url"] = cover_url
             return result
-        
+
         if parsed_input.source == InputKind.AUDIO:
-            return {
-                "audio": parsed_input.query
-            }
+            return {"audio": parsed_input.query}
 
         if parsed_input.source == InputKind.VIDEO:
-            return {
-                "video": parsed_input.query
-            }
-        
+            return {"video": parsed_input.query}
+
         if parsed_input.source == InputKind.PHOTO:
-            return {
-                "photo": parsed_input.query
-            }
+            return {"photo": parsed_input.query}
 
         if parsed_input.source == InputKind.UNSUPPORTED_URL:
             raise UnsupportedUrlError(
@@ -191,16 +187,18 @@ class SearchService:
         logger.debug("TikTok URL resolution started host=%s", host)
 
         try:
-            async with aiohttp.ClientSession(headers=headers, timeout=timeout) as session:
-                async with session.get(url, allow_redirects=True) as response:
-                    response.raise_for_status()
-                    resolved_url = str(response.url)
-                    logger.debug(
-                        "TikTok URL resolution completed status=%d resolved_host=%s",
-                        response.status,
-                        response.url.host,
-                    )
-                    return resolved_url
+            async with (
+                aiohttp.ClientSession(headers=headers, timeout=timeout) as session,
+                session.get(url, allow_redirects=True) as response,
+            ):
+                response.raise_for_status()
+                resolved_url = str(response.url)
+                logger.debug(
+                    "TikTok URL resolution completed status=%d resolved_host=%s",
+                    response.status,
+                    response.url.host,
+                )
+                return resolved_url
         except TimeoutError as exc:
             logger.warning("TikTok URL resolution timed out host=%s", host)
             raise UrlResolutionError(

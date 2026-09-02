@@ -25,7 +25,11 @@ async def run_application(settings: Settings) -> None:
         settings.inline_cache_chat_id,
     )
 
-    session = AiohttpSession(proxy=settings.telegram_proxy.get_secret_value() if settings.telegram_proxy else None)
+    session = AiohttpSession(
+        proxy=settings.telegram_proxy.get_secret_value()
+        if settings.telegram_proxy
+        else None
+    )
     bot = Bot(token=settings.bot_token.get_secret_value(), session=session)
     dispatcher = Dispatcher()
 

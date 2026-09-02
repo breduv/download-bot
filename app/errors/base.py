@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from typing import ClassVar
 
 
@@ -28,57 +27,56 @@ class AppError(Exception):
 
 class TrackFetchError(AppError):
     code: ClassVar[str] = "track_fetch_error"
-    public_message: ClassVar[str] = "Не смог получить трек. Попробуй позже"
+    public_message: str = "Не смог получить трек. Попробуй позже"
 
 
 class ProviderTimeoutError(AppError):
     code: ClassVar[str] = "provider_timeout"
-    public_message: ClassVar[str] = "Сервис не ответил вовремя. Попробуй позже"
+    public_message: str = "Сервис не ответил вовремя. Попробуй позже"
 
 
 class DownloadError(AppError):
     code: ClassVar[str] = "download_error"
-    public_message: ClassVar[str] = "Не удалось скачать файл. Попробуй позже"
+    public_message: str = "Не удалось скачать файл. Попробуй позже"
 
 
 class EmptyResponseError(AppError):
     code: ClassVar[str] = "empty_response"
-    public_message: ClassVar[str] = "Не удалось получить данные. Попробуй позже"
+    public_message: str = "Не удалось получить данные. Попробуй позже"
 
 
 class UnexpectedResponseError(AppError):
     code: ClassVar[str] = "unexpected_response"
-    public_message: ClassVar[str] = "Не удалось обработать полученные данные. Попробуй позже"
+    public_message: str = "Не удалось обработать полученные данные. Попробуй позже"
 
 
 class MediaTooLargeError(AppError):
     code: ClassVar[str] = "media_too_large"
-    public_message: ClassVar[str] = "Файл слишком большой для отправки"
+    public_message: str = "Файл слишком большой для отправки"
 
 
 class EmptyQueryError(AppError):
     code: ClassVar[str] = "empty_query"
-    public_message: ClassVar[str] = "Отправь название трека или ссылку"
+    public_message: str = "Отправь название трека или ссылку"
 
 
 class UnsupportedUrlError(AppError):
     code: ClassVar[str] = "unsupported_url"
-    public_message: ClassVar[str] = "Эта ссылка пока не поддерживается"
+    public_message: str = "Эта ссылка пока не поддерживается"
 
 
 class UrlResolutionError(AppError):
     code: ClassVar[str] = "url_resolution_error"
-    public_message: ClassVar[str] = (
-        "Не удалось раскрыть короткую ссылку TikTok. "
-        "Пришли полную ссылку на публикацию"
+    public_message: str = (
+        "Не удалось раскрыть короткую ссылку TikTok. Пришли полную ссылку на публикацию"
     )
 
 
 class InvalidInputKindError(AppError):
     code: ClassVar[str] = "invalid_input_kind"
-    public_message: ClassVar[str] = "Не удалось понять, что делать с этим запросом"
+    public_message: str = "Не удалось понять, что делать с этим запросом"
 
 
 class InvalidCallbackDataError(AppError):
     code: ClassVar[str] = "invalid_callback_data"
-    public_message: ClassVar[str] = "Неизвестная кнопка"
+    public_message: str = "Неизвестная кнопка"

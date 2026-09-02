@@ -14,7 +14,6 @@ from app.errors.base import (
 )
 from app.models.media import TrackInfo
 
-
 logger = getLogger(__name__)
 
 
@@ -23,11 +22,15 @@ class SpotifyProvider:
         self.client = Spotify(
             auth_manager=SpotifyClientCredentials(
                 client_id=settings.spotify_client_id,
-                client_secret=settings.spotify_client_secret.get_secret_value()
+                client_secret=settings.spotify_client_secret.get_secret_value(),
             ),
             proxies={
-                "http": settings.media_proxy.get_secret_value() if settings.media_proxy else None,
-                "https": settings.media_proxy.get_secret_value() if settings.media_proxy else None,
+                "http": settings.media_proxy.get_secret_value()
+                if settings.media_proxy
+                else None,
+                "https": settings.media_proxy.get_secret_value()
+                if settings.media_proxy
+                else None,
             },
             requests_timeout=20,
             retries=3,
@@ -115,7 +118,7 @@ class SpotifyProvider:
             cover_url=cover_url,
             track_id=track_id,
         )
-    
+
     async def get_track(self, track_id_or_url: str) -> TrackInfo:
         logger.debug("Spotify get_track request started")
         try:
@@ -162,7 +165,7 @@ class SpotifyProvider:
         track = self._convert_track(item)
         logger.debug("Spotify get_track request completed track_id=%s", track.track_id)
         return track
-    
+
     async def search_tracks(self, query: str) -> list[TrackInfo]:
         logger.debug("Spotify search request started query_length=%d", len(query))
         try:
