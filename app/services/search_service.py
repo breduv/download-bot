@@ -58,6 +58,9 @@ class SearchService:
                 operation_name="parse_input",
             )
 
+        if host in YOUTUBE_MUSIC_HOSTS:
+            return ParsedInput(InputKind.AUDIO, value)
+
         if host in SPOTIFY_HOSTS:
             return ParsedInput(InputKind.SPOTIFY, value)
 
