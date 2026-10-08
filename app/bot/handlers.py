@@ -82,7 +82,7 @@ class BotHandlers:
 
     async def handle_text(self, msg: Message) -> None:
         try:
-            if msg.text is None or not msg.from_user:
+            if msg.text is None or not msg.from_user or msg.from_user.is_bot:
                 return
 
             logger.info(

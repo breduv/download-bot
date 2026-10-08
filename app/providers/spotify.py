@@ -23,6 +23,15 @@ class SpotifyProvider:
             auth_manager=SpotifyClientCredentials(
                 client_id=settings.spotify_client_id,
                 client_secret=settings.spotify_client_secret.get_secret_value(),
+                proxies={
+                    "http": settings.media_proxy.get_secret_value()
+                    if settings.media_proxy
+                    else None,
+                    "https": settings.media_proxy.get_secret_value()
+                    if settings.media_proxy
+                    else None,
+                },
+                requests_timeout=20,
             ),
             proxies={
                 "http": settings.media_proxy.get_secret_value()
@@ -39,13 +48,6 @@ class SpotifyProvider:
         self.search_limit = settings.search_limit
 
     def _convert_track(self, item: dict) -> TrackInfo:
-        if not isinstance(item, dict):
-            raise UnexpectedResponseError(
-                f"Spotify returned invalid track type: {type(item).__name__}",
-                component="spotify",
-                operation_name="convert_track",
-                public_message="Spotify вернул некорректные данные трека. Попробуй позже",
-            )
 
         album = item.get("album")
         artists = item.get("artists")
